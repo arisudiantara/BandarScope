@@ -1,0 +1,61 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html, body {
+  background: #0a0e1a;
+  color: #f1f5f9;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+}
+
+/* Scrollbar styling (dark) */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: #0f172a;
+}
+::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 5px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+
+/* Card hover */
+.card {
+  @apply bg-bg-card border border-border rounded-xl;
+}
+
+.card-interactive {
+  @apply card transition-all hover:border-border-muted hover:shadow-lg hover:shadow-black/30;
+}
+
+/* Pulse for live indicator */
+.pulse-dot {
+  @apply relative inline-flex h-2 w-2 rounded-full bg-accent-green;
+}
+.pulse-dot::after {
+  content: "";
+  @apply absolute inset-0 rounded-full bg-accent-green animate-ping opacity-75;
+}
+
+/* Score badge */
+.score-badge {
+  @apply inline-flex items-center justify-center px-2 py-0.5 rounded-md text-xs font-semibold border;
+}
+
+/* Tabular numbers */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
