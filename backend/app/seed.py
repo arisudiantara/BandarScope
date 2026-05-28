@@ -131,34 +131,110 @@ def _generate_price_path(
     start_price: float,
     pattern: str,
     volatility: float = 0.02,
-) -> np.ndarray:
+) -> tuple[np.ndarray, list[str]]:
     """
-    Generate realistic price path.
-    Patterns: 'accumulation', 'distribution', 'sideways', 'breakout', 'fade'
+    Generate realistic price path with multi-stage cycle.
+
+    For long-term mock (730 days), we cycle through Wyckoff phases:
+    Accumulation → Markup → Distribution → Markdown → Accumulation ...
+
+    Returns: (prices_array, daily_phase_labels)
     """
-    drift_map = {
-        "accumulation": -0.0008,   # gentle decline (stealth)
-        "distribution": 0.0006,    # slight rise (offering)
-        "sideways":     0.0,
-        "breakout":     0.004,     # strong uptrend
-        "fade":         -0.003,    # downtrend
+    # Define stage segments (proportions of total days)
+    if pattern == "cyclical":
+        # Multi-cycle: 4 phases × ~180 days each
+        cycle_len = days // 2  # one full cycle ~half period
+        phase_lens = [
+            int(cycle_len * 0.30),  # accumulation
+            int(cycle_len * 0.25),  # markup
+            int(cycle_len * 0.25),  # distribution
+            int(cycle_len * 0.20),  # markdown
+        ]
+        # Repeat to fill days
+        phases = []
+        while len(phases) < days:
+            for label, length in zip(
+                ["accumulation", "markup", "distribution", "markdown"],
+                phase_lens,
+            ):
+                phases.extend([label] * length)
+                if len(phases) >= days:
+                    break
+        phases = phases[:days]
+    elif pattern == "long_uptrend":
+        # Mostly accumulation + markup, brief distribution
+        phases = (
+            ["accumulation"] * int(days * 0.35) +
+            ["markup"] * int(days * 0.40) +
+            ["distribution"] * int(days * 0.15) +
+            ["markdown"] * int(days * 0.10)
+        )
+        phases = phases[:days] + ["markup"] * (days - len(phases[:days]))
+    elif pattern == "long_downtrend":
+        phases = (
+            ["distribution"] * int(days * 0.30) +
+            ["markdown"] * int(days * 0.50) +
+            ["accumulation"] * int(days * 0.20)
+        )
+        phases = phases[:days] + ["markdown"] * (days - len(phases[:days]))
+    elif pattern == "stealth_then_breakout":
+        # Long stealth accumulation then sharp breakout
+        phases = (
+            ["accumulation"] * int(days * 0.55) +
+            ["markup"] * int(days * 0.30) +
+            ["distribution"] * int(days * 0.10) +
+            ["markdown"] * int(days * 0.05)
+        )
+        phases = phases[:days] + ["accumulation"] * (days - len(phases[:days]))
+    elif pattern == "ranging":
+        # Sideways with mini cycles
+        phases = []
+        mini_cycle = 30
+        while len(phases) < days:
+            phases.extend(["accumulation"] * mini_cycle)
+            phases.extend(["distribution"] * mini_cycle)
+        phases = phases[:days]
+    else:
+        # Single phase (legacy support)
+        phases = [pattern] * days
+
+    # Phase-specific drift & volatility
+    phase_drift = {
+        "accumulation": -0.0006,   # gentle decline / sideways
+        "markup":        0.0040,   # strong uptrend
+        "distribution":  0.0008,   # minor rise (offering)
+        "markdown":     -0.0035,   # downtrend
+        "sideways":      0.0,
+        # Legacy aliases
+        "breakout":      0.0040,
+        "fade":         -0.0030,
     }
-    drift = drift_map.get(pattern, 0.0)
+    phase_vol = {
+        "accumulation": volatility * 0.8,
+        "markup":        volatility * 1.2,
+        "distribution":  volatility * 0.9,
+        "markdown":      volatility * 1.3,
+        "sideways":      volatility * 0.7,
+        "breakout":      volatility * 1.2,
+        "fade":          volatility * 1.3,
+    }
 
-    returns = np.random.normal(drift, volatility, days)
+    returns = np.zeros(days)
+    for i, ph in enumerate(phases):
+        d = phase_drift.get(ph, 0)
+        v = phase_vol.get(ph, volatility)
+        returns[i] = np.random.normal(d, v)
 
-    # Add a few momentum days
-    if pattern == "breakout":
-        spike_days = np.random.choice(days, size=max(1, days // 20), replace=False)
-        returns[spike_days] += 0.025
-    elif pattern == "accumulation":
-        # late-stage spike (bandar finally pushing up)
-        if days > 60:
-            returns[-15:] += 0.005
+    # Inject occasional spikes during markup phase
+    for i, ph in enumerate(phases):
+        if ph == "markup" and random.random() < 0.05:
+            returns[i] += 0.025
+        if ph == "markdown" and random.random() < 0.05:
+            returns[i] -= 0.025
 
     log_returns = np.cumsum(returns)
     prices = start_price * np.exp(log_returns)
-    return prices
+    return prices, phases
 
 
 def _round_idx_price(price: float) -> int:
@@ -232,14 +308,15 @@ def seed_market_data(db: Session, history_days: int = 120) -> None:
     score_buffer = []
 
     for sym in symbols:
-        # Pick a behavioral pattern per symbol
+        # Pick a long-term cyclical/trending pattern per symbol
         pattern = random.choices(
-            ["accumulation", "distribution", "sideways", "breakout", "fade"],
-            weights=[3, 2, 3, 1.5, 1.5],
+            ["cyclical", "long_uptrend", "long_downtrend",
+             "stealth_then_breakout", "ranging"],
+            weights=[3, 2.5, 1.5, 1.5, 1.5],
         )[0]
 
         start_price = random.choice([300, 500, 850, 1200, 2500, 3800, 5500, 8200, 12000])
-        prices = _generate_price_path(len(all_dates), start_price, pattern)
+        prices, phases = _generate_price_path(len(all_dates), start_price, pattern)
 
         # Volume baseline
         base_volume = random.randint(5_000_000, 200_000_000)
@@ -278,14 +355,19 @@ def seed_market_data(db: Session, history_days: int = 120) -> None:
             remaining_value = value
             broker_activities = {}
 
-            # Bandar brokers: weighted toward buying in accumulation pattern
+            # Current phase for this specific day
+            current_phase = phases[i]
+
+            # Bandar brokers: behavior driven by current phase
             for bcode in bandar_brokers:
-                if pattern == "accumulation":
-                    bias = np.random.uniform(0.55, 0.78)  # mostly buying
-                elif pattern == "distribution":
-                    bias = np.random.uniform(0.22, 0.45)  # mostly selling
-                elif pattern == "breakout":
-                    bias = np.random.uniform(0.50, 0.85)
+                if current_phase == "accumulation":
+                    bias = np.random.uniform(0.58, 0.78)  # mostly buying
+                elif current_phase == "markup":
+                    bias = np.random.uniform(0.50, 0.72)  # still buying, riding
+                elif current_phase == "distribution":
+                    bias = np.random.uniform(0.20, 0.42)  # mostly selling
+                elif current_phase == "markdown":
+                    bias = np.random.uniform(0.35, 0.55)  # mostly out
                 else:
                     bias = np.random.uniform(0.40, 0.60)
 
@@ -295,19 +377,18 @@ def seed_market_data(db: Session, history_days: int = 120) -> None:
                 sell_value = broker_value - buy_value
                 broker_activities[bcode] = (buy_value, sell_value)
 
-            # Foreign brokers
+            # Foreign brokers — tend to lag behind bandar
             for bcode in foreign_brokers:
                 if random.random() > 0.6:  # not all foreign brokers active daily
                     continue
-                # Foreign tend to follow trend with lag
-                if pattern == "accumulation":
-                    bias = np.random.uniform(0.50, 0.72)
-                elif pattern == "distribution":
-                    bias = np.random.uniform(0.30, 0.50)
-                elif pattern == "breakout":
-                    bias = np.random.uniform(0.55, 0.80)
-                elif pattern == "fade":
-                    bias = np.random.uniform(0.20, 0.45)
+                if current_phase == "accumulation":
+                    bias = np.random.uniform(0.45, 0.62)
+                elif current_phase == "markup":
+                    bias = np.random.uniform(0.58, 0.80)  # foreign chases markup
+                elif current_phase == "distribution":
+                    bias = np.random.uniform(0.42, 0.62)  # still buying late
+                elif current_phase == "markdown":
+                    bias = np.random.uniform(0.20, 0.42)  # finally exiting
                 else:
                     bias = np.random.uniform(0.45, 0.55)
 
@@ -319,14 +400,18 @@ def seed_market_data(db: Session, history_days: int = 120) -> None:
                 day_foreign_buy += buy_value
                 day_foreign_sell += sell_value
 
-            # Retail brokers — provide liquidity (opposite of bandar usually)
+            # Retail brokers — counter-trend (provide liquidity to bandar)
             for bcode in retail_brokers:
                 if random.random() > 0.5:
                     continue
-                if pattern == "accumulation":
-                    bias = np.random.uniform(0.30, 0.55)  # selling to bandar
-                elif pattern == "distribution":
-                    bias = np.random.uniform(0.50, 0.75)  # buying from bandar
+                if current_phase == "accumulation":
+                    bias = np.random.uniform(0.30, 0.50)  # selling to bandar
+                elif current_phase == "markup":
+                    bias = np.random.uniform(0.55, 0.75)  # FOMO buying
+                elif current_phase == "distribution":
+                    bias = np.random.uniform(0.55, 0.78)  # buying tops
+                elif current_phase == "markdown":
+                    bias = np.random.uniform(0.40, 0.62)  # confused
                 else:
                     bias = np.random.uniform(0.40, 0.60)
 
@@ -384,12 +469,15 @@ def seed_market_data(db: Session, history_days: int = 120) -> None:
         prev_close_20 = float(prices[max(0, len(prices) - 21)])
         momentum_pct = (latest_close / prev_close_20 - 1) * 100
 
-        # Compute scores based on pattern
-        pattern_score_bias = {
-            "accumulation": 78, "breakout": 85, "sideways": 50,
-            "distribution": 25, "fade": 18,
+        # Score driven by current (latest) phase
+        latest_phase = phases[-1]
+        phase_score_bias = {
+            "accumulation": 78,
+            "markup":       82,
+            "distribution": 28,
+            "markdown":     20,
         }
-        base_score = pattern_score_bias[pattern] + np.random.uniform(-10, 10)
+        base_score = phase_score_bias.get(latest_phase, 50) + np.random.uniform(-8, 8)
 
         bandar_score = float(np.clip(base_score, 0, 100))
         foreign_score = float(np.clip(base_score + np.random.uniform(-15, 15), 0, 100))
@@ -398,10 +486,10 @@ def seed_market_data(db: Session, history_days: int = 120) -> None:
         momentum_score = float(np.clip(50 + momentum_pct * 3, 0, 100))
         consistency_score = float(np.clip(base_score + np.random.uniform(-15, 15), 0, 100))
 
-        if pattern in ("accumulation", "breakout"):
+        if latest_phase in ("accumulation", "markup"):
             signal = "accumulation"
             label = "Strong Accumulation" if bandar_score > 75 else "Moderate Accumulation"
-        elif pattern in ("distribution", "fade"):
+        elif latest_phase in ("distribution", "markdown"):
             signal = "distribution"
             label = "Active Distribution" if bandar_score < 30 else "Mild Distribution"
         else:
@@ -439,6 +527,33 @@ def seed_market_data(db: Session, history_days: int = 120) -> None:
 
     db.commit()
 
+    # ─── Step: Compute verdict + retail non-flow per symbol ─────────
+    print("\nComputing verdict + retail non-flow for all symbols...")
+    from app.services.verdict import VerdictService
+    verdict_svc = VerdictService(db)
+    verdict_map = verdict_svc.compute_universe(target_date=all_dates[-1])
+    updated = 0
+    for sym, v in verdict_map.items():
+        score_row = (
+            db.query(AIScore)
+            .filter(AIScore.symbol == sym, AIScore.date == all_dates[-1])
+            .first()
+        )
+        if not score_row:
+            continue
+        score_row.verdict = v["verdict"]
+        score_row.verdict_explanation = v["explanation"]
+        score_row.slope_5d = v["slope_5d"]
+        score_row.slope_15d = v["slope_15d"]
+        score_row.slope_30d = v["slope_30d"]
+        score_row.r_squared_15d = v["r_squared_15d"]
+        score_row.consistency_pct = v["consistency_pct"]
+        score_row.retail_non_flow_score = v["retail_non_flow_score"]
+        score_row.retail_non_flow_label = v["retail_non_flow_label"]
+        updated += 1
+    db.commit()
+    print(f"  Verdict updated: {updated} symbols")
+
 
 def seed_watchlists(db: Session) -> None:
     """Create demo watchlists."""
@@ -467,7 +582,7 @@ def main():
     db = SessionLocal()
     try:
         seed_master_data(db)
-        seed_market_data(db, history_days=120)
+        seed_market_data(db, history_days=730)   # 2 years for backtesting
         seed_watchlists(db)
         print("\nSeed complete.")
         print(f"  Symbols:   {db.query(Symbol).count()}")

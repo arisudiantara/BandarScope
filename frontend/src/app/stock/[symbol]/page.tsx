@@ -8,10 +8,11 @@ import {
   Target, Zap,
 } from "lucide-react";
 import {
-  symbolsApi, brokerApi, flowApi,
+  symbolsApi, brokerApi, flowApi, verdictApi,
 } from "@/lib/api";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { VerdictBadge, RetailNonFlowBadge } from "@/components/ui/VerdictBadge";
 import { PriceChart } from "@/components/charts/PriceChart";
 import { InventoryChart } from "@/components/charts/InventoryChart";
 import { ForeignFlowChart } from "@/components/charts/ForeignFlowChart";
@@ -54,6 +55,10 @@ export default function StockDetailPage() {
     queryKey: ["balance", symbol, periodDays],
     queryFn: () => flowApi.balance(symbol, periodDays),
   });
+  const verdict = useQuery({
+    queryKey: ["verdict", symbol],
+    queryFn: () => verdictApi.get(symbol),
+  });
 
   const d = detail.data;
   const score = d?.score;
@@ -65,6 +70,13 @@ export default function StockDetailPage() {
         <div>
           <div className="flex items-center gap-3">
             <h1 className="text-3xl font-bold font-mono">{symbol}</h1>
+            {verdict.data && (
+              <VerdictBadge
+                verdict={verdict.data.verdict}
+                size="lg"
+                tooltip={verdict.data.explanation}
+              />
+            )}
             {d && (
               <Badge variant="info" className="text-xs">
                 {d.sector}
@@ -96,6 +108,115 @@ export default function StockDetailPage() {
           </div>
         )}
       </div>
+
+      {/* Verdict & Retail Non-Flow Card */}
+      {verdict.data && (
+        <Card className="bg-gradient-to-br from-bg-card to-bg-subtle border-border">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Verdict block */}
+            <div className="flex gap-3 items-start">
+              <VerdictBadge
+                verdict={verdict.data.verdict}
+                size="lg"
+                tooltip={verdict.data.explanation}
+              />
+              <div className="flex-1">
+                <div className="text-xs text-text-muted uppercase tracking-wide mb-1">
+                  Kesimpulan Trend
+                </div>
+                <div className="text-sm font-medium mb-1">
+                  {verdict.data.verdict === "GREEN_CHECK" && "Akumulasi Konsisten"}
+                  {verdict.data.verdict === "ORANGE_X" && "Sideways / Mixed"}
+                  {verdict.data.verdict === "RED_MINUS" && "Distribusi Konsisten"}
+                  <span className="ml-2 text-xs text-text-muted">
+                    ({verdict.data.confidence.toFixed(0)}% confidence)
+                  </span>
+                </div>
+                <p className="text-xs text-text-secondary leading-relaxed">
+                  {verdict.data.explanation}
+                </p>
+                <div className="grid grid-cols-3 gap-2 mt-3 text-[10px]">
+                  <div className="rounded bg-bg-subtle border border-border px-2 py-1">
+                    <div className="text-text-muted">Slope 5D</div>
+                    <div
+                      className={cn(
+                        "tabular font-semibold",
+                        verdict.data.slope_5d > 0
+                          ? "text-accent-green"
+                          : "text-accent-red"
+                      )}
+                    >
+                      {verdict.data.slope_5d > 0 ? "+" : ""}
+                      {verdict.data.slope_5d.toFixed(0)}
+                    </div>
+                  </div>
+                  <div className="rounded bg-bg-subtle border border-border px-2 py-1">
+                    <div className="text-text-muted">Slope 15D</div>
+                    <div
+                      className={cn(
+                        "tabular font-semibold",
+                        verdict.data.slope_15d > 0
+                          ? "text-accent-green"
+                          : "text-accent-red"
+                      )}
+                    >
+                      {verdict.data.slope_15d > 0 ? "+" : ""}
+                      {verdict.data.slope_15d.toFixed(0)}
+                    </div>
+                  </div>
+                  <div className="rounded bg-bg-subtle border border-border px-2 py-1">
+                    <div className="text-text-muted">R² 15D</div>
+                    <div className="tabular font-semibold">
+                      {verdict.data.r_squared_15d.toFixed(2)}
+                    </div>
+                  </div>
+                </div>
+                <div className="text-[10px] text-text-muted mt-2">
+                  Konsistensi: {verdict.data.consistency_pct.toFixed(0)}% (
+                  {verdict.data.buy_days_15d} dari 15 hari net buy) · Bandar lot
+                  growth 15D: {verdict.data.bandar_lot_growth_15d > 0 ? "+" : ""}
+                  {verdict.data.bandar_lot_growth_15d.toLocaleString()} lot
+                </div>
+              </div>
+            </div>
+
+            {/* Retail Non-Flow block */}
+            <div className="flex gap-3 items-start border-l border-border pl-4">
+              <RetailNonFlowBadge
+                score={verdict.data.retail_non_flow_score}
+                label={verdict.data.retail_non_flow_label}
+                size="md"
+              />
+              <div className="flex-1">
+                <div className="text-xs text-text-muted uppercase tracking-wide mb-1">
+                  Retail Non-Flow (Kontrarian)
+                </div>
+                <div className="text-sm font-medium mb-1">
+                  Score: {verdict.data.retail_non_flow_score.toFixed(0)}/100
+                </div>
+                <p className="text-xs text-text-secondary leading-relaxed">
+                  {verdict.data.retail_non_flow_explanation}
+                </p>
+                <div className="text-[10px] text-text-muted mt-2">
+                  Retail net 15D:{" "}
+                  <span
+                    className={
+                      verdict.data.retail_net_value_15d >= 0
+                        ? "text-accent-red"
+                        : "text-accent-green"
+                    }
+                  >
+                    {formatIDR(verdict.data.retail_net_value_15d)}
+                  </span>{" "}
+                  {verdict.data.retail_net_value_15d >= 0
+                    ? "(retail beli — bearish kontrarian)"
+                    : "(retail jual — bullish kontrarian)"}
+                </div>
+              </div>
+            </div>
+          </div>
+        </Card>
+      )}
 
       {/* Period selector */}
       <div className="flex gap-2">
