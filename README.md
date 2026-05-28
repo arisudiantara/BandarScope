@@ -71,3 +71,12 @@ This is a demonstration platform with **synthetic mock data**. For production us
 2. Replace mock data generator with real ingestion pipeline
 3. Migrate from SQLite to TimescaleDB + ClickHouse
 4. Add authentication, rate limiting, and proper deployment infrastructure
+
+## Customizing Broker Master
+
+Daftar 90 broker tersimpan di `backend/app/data/brokers.csv`. Edit file ini untuk reclassify broker (foreign / institutional / market_maker / retail / corporate / zombie). Detail lengkap di `backend/app/data/README.md`.
+
+Setelah edit CSV, jalankan:
+```bash
+python -m app.seed
+```

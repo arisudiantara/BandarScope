@@ -1,0 +1,91 @@
+code,name,is_foreign,cluster_label,notes
+AF,HSBC Securities Asia,1,institutional,Foreign bank securities arm
+AG,Bahana Sekuritas,0,market_maker,Domestic state-owned investment bank
+AH,Astronacci Sekuritas,0,zombie,Edit cluster as needed
+AI,Aldiracita Corpotama,0,corporate,
+AK,UBS Sekuritas Indonesia,1,institutional,Foreign
+AO,Sucor Sekuritas,0,institutional,
+AP,Pacific Capital Securities,0,corporate,
+AR,Binaartha Sekuritas,0,corporate,
+AT,Phintraco Sekuritas,0,retail,
+AZ,Sucorinvest Central Gani,0,retail,
+BB,BNI Sekuritas,0,institutional,
+BF,Surya Fajar Sekuritas,0,corporate,
+BK,JP Morgan Sekuritas Indonesia,1,institutional,Foreign bulge bracket
+BR,Trimegah Sekuritas,0,market_maker,
+BS,Yulie Sekuritas Indonesia,0,zombie,
+BZ,Batavia Prosperindo Sekuritas,0,corporate,
+CC,Mandiri Sekuritas (CC),0,market_maker,Top domestic market maker
+CG,Citigroup Securities Indonesia,1,institutional,Foreign
+CP,Valbury Asia Securities,0,retail,
+CS,Credit Suisse Sekuritas,1,institutional,Foreign (now under UBS)
+DB,Deutsche Securities Indonesia,1,institutional,Foreign
+DD,Investindo Nusantara Sekuritas,0,corporate,
+DH,Sinarmas Sekuritas,0,institutional,
+DR,OCBC Sekuritas Indonesia,0,retail,
+DU,CIMB Niaga Securities,1,institutional,Foreign
+DX,Bahana Treasury,0,institutional,
+EP,MNC Sekuritas,0,corporate,
+ES,Reliance Sekuritas,0,corporate,
+FG,Panin Sekuritas,0,institutional,
+FO,Phintraco Sekuritas Premium,0,retail,
+FS,Yuanta Sekuritas Indonesia,0,retail,
+FZ,Waterfront Sekuritas,0,retail,
+GA,Lautandhana Securindo,0,zombie,
+GI,Globalindo Sekuritas,0,corporate,
+GR,Panin Treasury,0,institutional,
+GW,BNP Paribas Sekuritas Indonesia,1,institutional,Foreign
+HD,Hortus Danavest,0,corporate,
+HG,RHB Sekuritas Indonesia,1,institutional,Foreign
+HP,Henan Putihrai Sekuritas,0,corporate,
+ID,Anugerah Sekuritas Indonesia,0,zombie,
+IF,Samuel Sekuritas,0,corporate,
+II,Danatama Makmur Sekuritas,0,zombie,
+IN,Investasi Mandiri Sekuritas,0,zombie,
+IP,MNC Sekuritas Pacific,0,corporate,
+IT,Inti Fikasa Securindo,0,zombie,
+KI,Ciptadana Sekuritas Asia,0,institutional,
+KK,Phillip Sekuritas Indonesia,1,institutional,Foreign
+KS,Kresna Sekuritas,0,zombie,Historically suspended
+KZ,CLSA Sekuritas Indonesia,1,institutional,Foreign
+LG,Trimegah Treasury,0,market_maker,
+LH,NH Korindo Sekuritas Indonesia,0,retail,
+LS,Reliance Treasury,0,corporate,
+MG,Semesta Indovest,0,market_maker,
+MI,Victoria Securities Indonesia,0,corporate,
+ML,Merrill Lynch Sekuritas (BofA),1,institutional,Foreign
+MS,Morgan Stanley Sekuritas Indonesia,1,institutional,Foreign
+MU,Minna Padi Investama Sekuritas,0,corporate,
+NI,BNI Sekuritas (Treasury),0,institutional,
+OD,Danareksa Sekuritas,0,institutional,Government-affiliated
+PD,Indo Premier Sekuritas,0,retail,Top retail broker
+PG,Panca Global Sekuritas,0,corporate,
+PI,Pacific Capital Investment,0,zombie,
+PP,Panin Sekuritas Treasury,0,institutional,
+PS,Paramitra Alfa Sekuritas,0,zombie,
+QA,Sinarmas Sekuritas Treasury,0,institutional,
+RB,Mandiri Treasury,0,market_maker,
+RG,Mandiri Sekuritas (RG),0,market_maker,Top market maker
+RO,Erdikha Elit Sekuritas,0,corporate,
+RX,Macquarie Sekuritas Indonesia,1,institutional,Foreign
+SC,Maybank Sekuritas Indonesia,1,institutional,Foreign
+SH,Artha Sekuritas Indonesia,0,zombie,
+SQ,BCA Sekuritas,0,institutional,
+SS,Stockbit Sekuritas Indonesia,0,retail,
+TF,Universal Broker Indonesia,0,corporate,
+TP,Sinarmas Multifinance Sekuritas,0,corporate,
+TS,Trimegah Treasury Trading,0,market_maker,
+UB,UBS Sekuritas Treasury,1,institutional,Foreign
+UL,UOB Kay Hian Sekuritas,1,institutional,Foreign
+UP,Buana Capital Sekuritas,0,zombie,
+US,UEI Sekuritas Indonesia,0,zombie,
+WW,UEI Securities Trading,0,corporate,
+XA,KGI Sekuritas Indonesia,0,retail,
+XC,Phintraco Sekuritas Express,0,retail,
+XL,Mahanusa Sekuritas,0,retail,
+YB,UBS Sekuritas Special,1,institutional,Foreign
+YJ,Lotus Andalan Sekuritas,0,retail,
+YO,Amantara Securities,0,zombie,
+YP,Mirae Asset Sekuritas Indonesia,0,retail,Largest retail broker
+YU,CGS-CIMB Sekuritas Indonesia,1,institutional,Foreign
+ZP,Maybank Kim Eng Sekuritas,1,institutional,Foreign

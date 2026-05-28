@@ -11,14 +11,56 @@ Generates realistic IDX-style data:
 """
 from __future__ import annotations
 
+import csv
 import random
 from datetime import date, timedelta
+from pathlib import Path
 from typing import List
 
 import numpy as np
 from sqlalchemy.orm import Session
 
 from app.core.database import SessionLocal, Base, engine
+
+# Path to the editable broker master CSV
+BROKERS_CSV_PATH = Path(__file__).parent / "data" / "brokers.csv"
+
+
+def load_brokers_from_csv() -> list[tuple]:
+    """
+    Read brokers from CSV file (data/brokers.csv).
+
+    Returns list of tuples: (code, name, type, is_foreign, cluster_label).
+
+    Edit data/brokers.csv to reclassify any broker without touching code.
+    Cluster labels: market_maker, institutional, retail, corporate, zombie
+    """
+    if not BROKERS_CSV_PATH.exists():
+        raise FileNotFoundError(
+            f"Broker master not found: {BROKERS_CSV_PATH}\n"
+            "Please ensure data/brokers.csv exists."
+        )
+
+    rows = []
+    with BROKERS_CSV_PATH.open("r", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        for r in reader:
+            code = r["code"].strip().upper()
+            if not code:
+                continue
+            is_foreign = r["is_foreign"].strip() in ("1", "true", "True", "TRUE")
+            cluster = r["cluster_label"].strip().lower()
+            type_ = "foreign" if is_foreign else "domestic"
+            rows.append((code, r["name"].strip(), type_, is_foreign, cluster))
+
+    # Validate uniqueness
+    seen = set()
+    for r in rows:
+        if r[0] in seen:
+            raise ValueError(f"Duplicate broker code in CSV: {r[0]}")
+        seen.add(r[0])
+
+    return rows
 from app.models import (
     Symbol, Sector, Broker, Candle,
     BrokerDailySummary, ForeignFlow, AIScore, Watchlist,
@@ -82,51 +124,8 @@ SYMBOL_NAMES = {
     "DCII": "DCI Indonesia",
 }
 
-# Broker codes mimicking real IDX brokers (anonymized)
-BROKERS = [
-    # Foreign institutional
-    ("CC", "CLSA Sekuritas",         "foreign",       True,  "institutional"),
-    ("CS", "Credit Suisse",          "foreign",       True,  "institutional"),
-    ("DB", "Deutsche Securities",    "foreign",       True,  "institutional"),
-    ("KZ", "CLSA",                   "foreign",       True,  "institutional"),
-    ("ML", "Merrill Lynch",          "foreign",       True,  "institutional"),
-    ("MS", "Morgan Stanley",         "foreign",       True,  "institutional"),
-    ("RX", "Macquarie",              "foreign",       True,  "institutional"),
-    ("ZP", "Maybank Kim Eng",        "foreign",       True,  "institutional"),
-    ("AK", "UBS Securities",         "foreign",       True,  "institutional"),
-    ("KI", "Ciptadana Sekuritas",    "foreign",       True,  "institutional"),
-    # Domestic institutional / market makers
-    ("RG", "Mandiri Sekuritas",      "domestic",      False, "market_maker"),
-    ("AG", "Bahana Sekuritas",       "domestic",      False, "market_maker"),
-    ("MG", "Semesta Indovest",       "domestic",      False, "market_maker"),
-    ("LG", "Trimegah Sekuritas",     "domestic",      False, "market_maker"),
-    ("NI", "BNI Sekuritas",          "domestic",      False, "institutional"),
-    ("BR", "Sinarmas Sekuritas",     "domestic",      False, "institutional"),
-    ("PD", "Indo Premier",           "domestic",      False, "institutional"),
-    ("SQ", "BCA Sekuritas",          "domestic",      False, "institutional"),
-    # Retail-heavy online brokers
-    ("YP", "Mirae Asset Sekuritas",  "domestic",      False, "retail"),
-    ("YJ", "Lotus Andalan",          "domestic",      False, "retail"),
-    ("YU", "CGS-CIMB Sekuritas",     "domestic",      False, "retail"),
-    ("XL", "Mahanusa Sekuritas",     "domestic",      False, "retail"),
-    ("XC", "Phintraco Sekuritas",    "domestic",      False, "retail"),
-    ("DR", "OCBC Sekuritas",         "domestic",      False, "retail"),
-    ("FZ", "Waterfront Sekuritas",   "domestic",      False, "retail"),
-    # Corporate
-    ("EP", "MNC Sekuritas",          "domestic",      False, "corporate"),
-    ("HG", "Henan Putihrai",         "domestic",      False, "corporate"),
-    ("OD", "Danareksa Sekuritas",    "domestic",      False, "corporate"),
-    # Proprietary
-    ("PP", "Panin Sekuritas",        "domestic",      False, "institutional"),
-    ("TF", "Universal Broker",       "domestic",      False, "institutional"),
-    # Zombie — brokers with sporadic, low-volume activity (insider sleepers)
-    ("AH", "Astra Sekuritas",        "domestic",      False, "zombie"),
-    ("AI", "Aldiracita Corpotama",   "domestic",      False, "zombie"),
-    ("AK", "UBS Sekuritas",          "domestic",      False, "zombie"),
-    ("AT", "Phillip Sekuritas",      "domestic",      False, "zombie"),
-    ("BS", "BNI Sekuritas Treasury", "domestic",      False, "zombie"),
-    ("KK", "Phintraco Treasury",     "domestic",      False, "zombie"),
-]
+# Broker master is loaded from data/brokers.csv — edit that file to reclassify
+BROKERS = load_brokers_from_csv()
 
 
 # ---------------------------------------------------------------------------
