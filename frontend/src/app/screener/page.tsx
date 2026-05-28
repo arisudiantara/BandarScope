@@ -7,6 +7,7 @@ import { Search, Sparkles, Filter, ArrowUpDown } from "lucide-react";
 import { screenerApi, sectorApi, type ScreenerParams } from "@/lib/api";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { VerdictBadge, RetailNonFlowBadge } from "@/components/ui/VerdictBadge";
 import {
   formatIDR, formatPrice, pctClass, scoreBgClass, signalClass, cn,
 } from "@/lib/utils";
@@ -151,6 +152,32 @@ export default function ScreenerPage() {
               <option value="neutral">Neutral</option>
             </select>
           </FilterField>
+          <FilterField label="Verdict (Kesimpulan)">
+            <select
+              value={filters.verdict ?? ""}
+              onChange={(e) => update("verdict", e.target.value || undefined)}
+              className="filter-input"
+            >
+              <option value="">All</option>
+              <option value="GREEN_CHECK">✓ Akumulasi (Hijau)</option>
+              <option value="ORANGE_X">✗ Sideways (Orange)</option>
+              <option value="RED_MINUS">− Distribusi (Merah)</option>
+            </select>
+          </FilterField>
+          <FilterField label="Retail Non-Flow">
+            <select
+              value={filters.retail_non_flow_label ?? ""}
+              onChange={(e) =>
+                update("retail_non_flow_label", e.target.value || undefined)
+              }
+              className="filter-input"
+            >
+              <option value="">All</option>
+              <option value="POSITIVE_NONFLOW">Retail Jual (Positif)</option>
+              <option value="NEUTRAL">Netral</option>
+              <option value="NEGATIVE_NONFLOW">Retail FOMO (Negatif)</option>
+            </select>
+          </FilterField>
           <FilterField label="Sector">
             <select
               value={filters.sector ?? ""}
@@ -177,6 +204,8 @@ export default function ScreenerPage() {
               <option value="momentum_score">Momentum</option>
               <option value="volume_anomaly">Volume Anomaly</option>
               <option value="foreign_net">Foreign Net</option>
+              <option value="retail_non_flow_score">Retail Non-Flow</option>
+              <option value="consistency_pct">Konsistensi 15D</option>
             </select>
           </FilterField>
         </div>
@@ -208,17 +237,17 @@ export default function ScreenerPage() {
           <table className="w-full text-xs">
             <thead>
               <tr className="text-text-muted border-b border-border">
-                <th className="text-left px-4 py-2 font-medium">Symbol</th>
+                <th className="text-center px-2 py-2 font-medium w-8">✓</th>
+                <th className="text-left px-2 py-2 font-medium">Symbol</th>
                 <th className="text-left px-2 py-2 font-medium">Sector</th>
                 <th className="text-right px-2 py-2 font-medium">Price</th>
-                <th className="text-right px-2 py-2 font-medium">Volume</th>
                 <th className="text-right px-2 py-2 font-medium">Vol Anom</th>
                 <th className="text-right px-2 py-2 font-medium">Foreign 20D</th>
                 <th className="text-right px-2 py-2 font-medium">Bandar</th>
-                <th className="text-right px-2 py-2 font-medium">Foreign</th>
                 <th className="text-right px-2 py-2 font-medium">Inventory</th>
                 <th className="text-right px-2 py-2 font-medium">Momentum</th>
-                <th className="text-left px-2 py-2 font-medium">Signal</th>
+                <th className="text-left px-2 py-2 font-medium">Retail Non-Flow</th>
+                <th className="text-right px-2 py-2 font-medium">Konsist 15D</th>
                 <th className="text-left px-2 py-2 font-medium">Behavior</th>
               </tr>
             </thead>
@@ -228,28 +257,41 @@ export default function ScreenerPage() {
                   key={r.symbol}
                   className="border-b border-border/30 hover:bg-bg-subtle/40"
                 >
-                  <td className="px-4 py-2">
+                  <td className="px-2 py-2 text-center">
+                    <VerdictBadge
+                      verdict={r.verdict}
+                      tooltip={r.verdict_explanation}
+                    />
+                  </td>
+                  <td className="px-2 py-2">
                     <Link
                       href={`/stock/${r.symbol}`}
                       className="font-mono font-semibold text-accent-blue hover:underline"
                     >
                       {r.symbol}
                     </Link>
+                    <div className="text-text-muted text-[10px]">{r.name}</div>
                   </td>
                   <td className="px-2 py-2 text-text-secondary">{r.sector}</td>
                   <td className="px-2 py-2 text-right tabular">
                     {formatPrice(r.close)}
                   </td>
-                  <td className="px-2 py-2 text-right tabular text-text-secondary">
-                    {(r.volume / 1_000_000).toFixed(1)}M
-                  </td>
-                  <td className={cn("px-2 py-2 text-right tabular", r.volume_anomaly > 1.5 ? "text-accent-yellow" : "text-text-secondary")}>
+                  <td
+                    className={cn(
+                      "px-2 py-2 text-right tabular",
+                      r.volume_anomaly > 1.5
+                        ? "text-accent-yellow"
+                        : "text-text-secondary"
+                    )}
+                  >
                     {r.volume_anomaly.toFixed(1)}x
                   </td>
                   <td
                     className={cn(
                       "px-2 py-2 text-right tabular",
-                      r.foreign_net >= 0 ? "text-accent-green" : "text-accent-red"
+                      r.foreign_net >= 0
+                        ? "text-accent-green"
+                        : "text-accent-red"
                     )}
                   >
                     {formatIDR(r.foreign_net)}
@@ -260,22 +302,19 @@ export default function ScreenerPage() {
                     </span>
                   </td>
                   <td className="px-2 py-2 text-right tabular">
-                    {r.foreign_score.toFixed(0)}
-                  </td>
-                  <td className="px-2 py-2 text-right tabular">
                     {r.inventory_score.toFixed(0)}
                   </td>
                   <td className="px-2 py-2 text-right tabular">
                     {r.momentum_score.toFixed(0)}
                   </td>
                   <td className="px-2 py-2">
-                    <span
-                      className={`text-[10px] px-1.5 py-0.5 rounded ${signalClass(
-                        r.smart_money_signal
-                      )}`}
-                    >
-                      {r.smart_money_signal}
-                    </span>
+                    <RetailNonFlowBadge
+                      score={r.retail_non_flow_score}
+                      label={r.retail_non_flow_label}
+                    />
+                  </td>
+                  <td className="px-2 py-2 text-right tabular text-text-secondary">
+                    {r.consistency_pct?.toFixed(0) ?? "-"}%
                   </td>
                   <td className="px-2 py-2 text-text-secondary text-[11px]">
                     {r.behavior_label}

@@ -15,15 +15,23 @@ import {
   Bell,
   Settings,
   Zap,
+  Newspaper,
+  BookOpen,
+  TestTube,
+  Calendar,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/daily-brief", label: "Daily Brief", icon: Newspaper },
   { href: "/screener", label: "Screener", icon: Search },
+  { href: "/patterns", label: "Pattern Library", icon: BookOpen },
+  { href: "/backtesting", label: "Backtesting", icon: TestTube },
   { href: "/sectors", label: "Sectors", icon: Layers },
   { href: "/rotation", label: "Rotation (RRG)", icon: Compass },
-  { href: "/heatmap", label: "Heatmap", icon: Activity },
+  { href: "/yearly-heatmap", label: "Yearly Heatmap", icon: Calendar },
+  { href: "/heatmap", label: "Daily Heatmap", icon: Activity },
   { href: "/watchlist", label: "Watchlist", icon: Star },
   { href: "/alerts", label: "Alerts", icon: Bell },
 ];

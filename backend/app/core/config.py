@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     ]
 
     # Mock data settings
-    MOCK_HISTORY_DAYS: int = 120
+    MOCK_HISTORY_DAYS: int = 730   # 2 years for backtesting & yearly heatmap
     MOCK_SYMBOLS_COUNT: int = 50
 
     class Config:

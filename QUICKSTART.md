@@ -2,9 +2,21 @@
 
 ## Prasyarat
 
-- **Python 3.11+** (cek: `python3 --version`)
+- **Python 3.11 atau 3.12** (cek: `python --version`) — ⚠️ **Hindari Python 3.13** (beberapa library belum support)
 - **Node.js 18+** (cek: `node --version`)
 - **npm** atau **pnpm**
+
+### Kalau Punya Python 3.13
+
+Install Python 3.11 dari https://www.python.org/ftp/python/3.11.9/python-3.11.9-amd64.exe — saat install **WAJIB centang ✅ "Add python.exe to PATH"**.
+
+Setelah install, gunakan `py -3.11` untuk pastikan pakai versi yang benar:
+
+```powershell
+py -3.11 -m venv venv
+.\venv\Scripts\activate
+python --version    # harus muncul Python 3.11.x
+```
 
 ## Cara Menjalankan (3 Langkah)
 
