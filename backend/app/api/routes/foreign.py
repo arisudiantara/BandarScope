@@ -28,6 +28,16 @@ def transaction_chart(
     return TransactionService(db).transaction_chart(symbol, days)
 
 
+@router.get("/multi-entity/{symbol}")
+def multi_entity_chart(
+    symbol: str,
+    days: int = Query(90, ge=20, le=365),
+    db: Session = Depends(get_db),
+):
+    """Multi-entity flow: foreign / institutional / market_maker / retail / zombie."""
+    return TransactionService(db).multi_entity_chart(symbol, days)
+
+
 @router.get("/balance/{symbol}")
 def balance_position(
     symbol: str,

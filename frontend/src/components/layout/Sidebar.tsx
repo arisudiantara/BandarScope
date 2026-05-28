@@ -19,6 +19,7 @@ import {
   BookOpen,
   TestTube,
   Calendar,
+  UserSearch,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -26,6 +27,7 @@ const NAV = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/daily-brief", label: "Daily Brief", icon: Newspaper },
   { href: "/screener", label: "Screener", icon: Search },
+  { href: "/broker-stalker", label: "Broker Stalker", icon: UserSearch },
   { href: "/patterns", label: "Pattern Library", icon: BookOpen },
   { href: "/backtesting", label: "Backtesting", icon: TestTube },
   { href: "/sectors", label: "Sectors", icon: Layers },

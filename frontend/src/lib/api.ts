@@ -93,6 +93,8 @@ export const flowApi = {
     request<ForeignFlowResponse>(`/foreign/${symbol}?days=${days}`),
   transaction: (symbol: string, days = 120) =>
     request<TransactionResponse>(`/transaction/${symbol}?days=${days}`),
+  multiEntity: (symbol: string, days = 90) =>
+    request<MultiEntityResponse>(`/multi-entity/${symbol}?days=${days}`),
   balance: (symbol: string, days = 90) =>
     request<BalanceResponse>(`/balance/${symbol}?days=${days}`),
 };
@@ -646,3 +648,121 @@ export interface Watchlist {
   symbols: string[];
   color: string;
 }
+
+
+
+// ============================================================
+// Multi-Entity Transaction Chart
+// ============================================================
+
+export type EntityType =
+  | "foreign"
+  | "institutional"
+  | "market_maker"
+  | "retail"
+  | "zombie";
+
+export interface MultiEntityData {
+  entity: EntityType;
+  label: string;
+  color: string;
+  total_buy: number;
+  total_sell: number;
+  total_net: number;
+  total_net_lot: number;
+  buy_days?: number;
+  total_days?: number;
+  behavior:
+    | "STRONG_ACCUMULATION"
+    | "ACCUMULATION"
+    | "NEUTRAL"
+    | "DISTRIBUTION"
+    | "STRONG_DISTRIBUTION"
+    | "INACTIVE";
+  data: Array<{
+    date: string;
+    buy: number;
+    sell: number;
+    net: number;
+    cumulative: number;
+  }>;
+}
+
+export interface MultiEntityResponse {
+  symbol: string;
+  period_days: number;
+  entities: MultiEntityData[];
+  daily_data: Array<{
+    date: string;
+    price: number;
+    foreign_net: number;
+    institutional_net: number;
+    market_maker_net: number;
+    retail_net: number;
+    zombie_net: number;
+  }>;
+}
+
+// ============================================================
+// Broker Stalker
+// ============================================================
+
+export interface BrokerInfo {
+  code: string;
+  name: string;
+  type: string;
+  cluster_label: string;
+  is_foreign: boolean;
+}
+
+export interface StalkerSymbolResult {
+  symbol: string;
+  name: string;
+  sector: string | null;
+  close: number;
+  buy_lot: number;
+  sell_lot: number;
+  net_lot: number;
+  buy_value: number;
+  sell_value: number;
+  net_value: number;
+  avg_buy_price: number | null;
+  active_days: number;
+  buy_days: number;
+  consistency_pct: number;
+  behavior_label: string;
+}
+
+export interface StalkerResponse {
+  broker: BrokerInfo;
+  period_days: number;
+  as_of: string;
+  total_symbols: number;
+  results: StalkerSymbolResult[];
+}
+
+export interface StalkerInventoryResponse {
+  broker: string;
+  symbol: string;
+  period_days: number;
+  data: Array<{
+    date: string;
+    daily_net_lot: number;
+    daily_net_value: number;
+    inventory_lot: number;
+    inventory_value: number;
+  }>;
+  price_series: Array<{ date: string; close: number }>;
+}
+
+export const brokerStalkerApi = {
+  brokers: () => request<BrokerInfo[]>(`/broker-stalker/brokers`),
+  stalk: (broker_code: string, days = 20, limit = 50, min_net_value = 100_000_000) =>
+    request<StalkerResponse>(
+      `/broker-stalker/stalk/${broker_code}?days=${days}&limit=${limit}&min_net_value=${min_net_value}`
+    ),
+  inventory: (broker_code: string, symbol: string, days = 90) =>
+    request<StalkerInventoryResponse>(
+      `/broker-stalker/inventory/${broker_code}/${symbol}?days=${days}`
+    ),
+};

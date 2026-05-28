@@ -7,6 +7,7 @@ from app.core.database import Base, engine
 from app.api.routes import (
     symbols, screener, broker, foreign, sectors, watchlist,
     verdict, daily_brief, patterns, backtest, yearly_heatmap,
+    broker_stalker,
 )
 
 # Auto-create tables on startup (dev convenience)
@@ -56,3 +57,4 @@ app.include_router(daily_brief.router, prefix="/api")
 app.include_router(patterns.router, prefix="/api")
 app.include_router(backtest.router, prefix="/api")
 app.include_router(yearly_heatmap.router, prefix="/api")
+app.include_router(broker_stalker.router, prefix="/api")

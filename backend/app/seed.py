@@ -119,6 +119,13 @@ BROKERS = [
     # Proprietary
     ("PP", "Panin Sekuritas",        "domestic",      False, "institutional"),
     ("TF", "Universal Broker",       "domestic",      False, "institutional"),
+    # Zombie — brokers with sporadic, low-volume activity (insider sleepers)
+    ("AH", "Astra Sekuritas",        "domestic",      False, "zombie"),
+    ("AI", "Aldiracita Corpotama",   "domestic",      False, "zombie"),
+    ("AK", "UBS Sekuritas",          "domestic",      False, "zombie"),
+    ("AT", "Phillip Sekuritas",      "domestic",      False, "zombie"),
+    ("BS", "BNI Sekuritas Treasury", "domestic",      False, "zombie"),
+    ("KK", "Phintraco Treasury",     "domestic",      False, "zombie"),
 ]
 
 
@@ -328,6 +335,12 @@ def seed_market_data(db: Session, history_days: int = 120) -> None:
         )
         retail_brokers = [b.code for b in brokers if b.cluster_label == "retail"]
         foreign_brokers = [b.code for b in brokers if b.is_foreign]
+        zombie_brokers = [b.code for b in brokers if b.cluster_label == "zombie"]
+
+        # Some symbols have a "waking zombie" — broker that suddenly becomes active
+        # in a specific phase (insider sleeper signal)
+        waking_zombie = random.choice(zombie_brokers) if zombie_brokers and random.random() < 0.4 else None
+        zombie_wake_phase = random.choice(["accumulation", "markup"]) if waking_zombie else None
 
         cumulative_foreign = 0
 
@@ -416,6 +429,30 @@ def seed_market_data(db: Session, history_days: int = 120) -> None:
                     bias = np.random.uniform(0.40, 0.60)
 
                 share = np.random.uniform(0.02, 0.08)
+                broker_value = int(remaining_value * share)
+                buy_value = int(broker_value * bias)
+                sell_value = broker_value - buy_value
+                broker_activities[bcode] = (buy_value, sell_value)
+
+            # Zombie brokers — mostly inactive, but waking_zombie spikes during
+            # specific phase (classic "insider sleeper" signal)
+            for bcode in zombie_brokers:
+                # Default: very rarely active
+                base_activity_chance = 0.1
+                share_range = (0.001, 0.005)
+                bias = np.random.uniform(0.45, 0.55)
+
+                # If this is the waking zombie and current phase matches,
+                # become VERY active (large net buy)
+                if bcode == waking_zombie and current_phase == zombie_wake_phase:
+                    base_activity_chance = 0.7
+                    share_range = (0.04, 0.12)
+                    bias = np.random.uniform(0.65, 0.85)  # strong net buy
+
+                if random.random() > base_activity_chance:
+                    continue
+
+                share = np.random.uniform(*share_range)
                 broker_value = int(remaining_value * share)
                 buy_value = int(broker_value * bias)
                 sell_value = broker_value - buy_value

@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import { useState } from "react";
 import {
   TrendingUp, TrendingDown, AlertTriangle, Eye, Users, BarChart3,
-  Target, Zap,
+  Target, Zap, Layers,
 } from "lucide-react";
 import {
   symbolsApi, brokerApi, flowApi, verdictApi,
@@ -17,6 +17,7 @@ import { PriceChart } from "@/components/charts/PriceChart";
 import { InventoryChart } from "@/components/charts/InventoryChart";
 import { ForeignFlowChart } from "@/components/charts/ForeignFlowChart";
 import { TransactionChart } from "@/components/charts/TransactionChart";
+import { MultiEntityChart } from "@/components/charts/MultiEntityChart";
 import { BalancePositionChart } from "@/components/charts/BalancePositionChart";
 import {
   formatIDR, formatPrice, pctClass, scoreBgClass, signalClass, cn,
@@ -58,6 +59,10 @@ export default function StockDetailPage() {
   const verdict = useQuery({
     queryKey: ["verdict", symbol],
     queryFn: () => verdictApi.get(symbol),
+  });
+  const multiEntity = useQuery({
+    queryKey: ["multi-entity", symbol, periodDays],
+    queryFn: () => flowApi.multiEntity(symbol, periodDays),
   });
 
   const d = detail.data;
@@ -442,6 +447,22 @@ export default function StockDetailPage() {
           <div className="mt-3 p-3 rounded-lg bg-bg-subtle border border-border-muted text-xs text-text-secondary">
             <strong className="text-text-primary">Divergence:</strong>{" "}
             {foreign.data.summary.divergence.interpretation}
+          </div>
+        )}
+      </Card>
+
+      {/* Multi-Entity Flow Chart */}
+      <Card>
+        <CardHeader
+          title="Multi-Entity Flow Chart"
+          subtitle="Foreign / Institutional / Market Maker / Retail / Zombie — siapa akumulasi, siapa distribusi"
+          action={<Layers className="h-4 w-4" />}
+        />
+        {multiEntity.data && multiEntity.data.entities.length > 0 ? (
+          <MultiEntityChart data={multiEntity.data} />
+        ) : (
+          <div className="text-center py-8 text-text-muted text-sm">
+            Loading multi-entity data...
           </div>
         )}
       </Card>
