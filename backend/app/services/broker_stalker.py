@@ -26,6 +26,10 @@ class BrokerStalkerService:
     def __init__(self, db: Session):
         self.db = db
 
+    def last_trading_day(self) -> Optional[date]:
+        """Return the most recent trading date in the candles table."""
+        return self.db.query(func.max(Candle.date)).scalar()
+
     # ------------------------------------------------------------------ #
     # Stalk a single broker across all symbols
     # ------------------------------------------------------------------ #
@@ -177,12 +181,17 @@ class BrokerStalkerService:
     def stalk_brokers(
         self,
         broker_codes: list[str],
-        days: int = 20,
+        start_date: Optional[date] = None,
+        end_date: Optional[date] = None,
         limit: int = 50,
         min_net_value: float = 100_000_000,
     ) -> dict:
         """
-        Combined stalking across multiple brokers.
+        Combined stalking across multiple brokers within a date range.
+
+        Default behavior:
+        - end_date = last trading day in DB
+        - start_date = end_date (single-day analysis = "today's flow")
 
         For each symbol, aggregates net flow from ALL selected brokers
         and shows which symbols they are *collectively* accumulating /
@@ -209,10 +218,20 @@ class BrokerStalkerService:
         valid_codes = [b.code for b in broker_rows]
         missing = set(codes) - set(valid_codes)
 
-        end_date = self.db.query(func.max(Candle.date)).scalar()
-        if not end_date:
+        # Resolve date range — default = last trading day (1 day)
+        last_trading_day = self.last_trading_day()
+        if not last_trading_day:
             return {"brokers": [], "results": []}
-        start_date = end_date - timedelta(days=days)
+
+        if end_date is None:
+            end_date = last_trading_day
+        if start_date is None:
+            start_date = end_date
+
+        if start_date > end_date:
+            return {"error": "start_date must be <= end_date"}
+
+        days = (end_date - start_date).days + 1
 
         # Aggregate per symbol across ALL selected brokers
         rows = (
@@ -239,8 +258,12 @@ class BrokerStalkerService:
             return {
                 "brokers": [self._broker_dict(b) for b in broker_rows],
                 "missing_codes": list(missing),
+                "broker_summary": [],
                 "period_days": days,
+                "start_date": start_date.isoformat(),
+                "end_date": end_date.isoformat(),
                 "as_of": end_date.isoformat(),
+                "last_trading_day": last_trading_day.isoformat(),
                 "total_symbols": 0,
                 "results": [],
             }
@@ -370,7 +393,10 @@ class BrokerStalkerService:
             "missing_codes": list(missing),
             "broker_summary": broker_summary,
             "period_days": days,
+            "start_date": start_date.isoformat(),
+            "end_date": end_date.isoformat(),
             "as_of": end_date.isoformat(),
+            "last_trading_day": last_trading_day.isoformat(),
             "total_symbols": len(results),
             "results": results[:limit],
         }

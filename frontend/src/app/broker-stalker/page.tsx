@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { UserSearch, Users } from "lucide-react";
 import {
   brokerStalkerApi,
@@ -12,6 +12,10 @@ import { Card, CardHeader } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { StatCard } from "@/components/ui/StatCard";
 import { MultiBrokerPicker } from "@/components/broker-stalker/MultiBrokerPicker";
+import {
+  DateRangePicker,
+  type DateRangePreset,
+} from "@/components/ui/DateRangePicker";
 import { formatIDR, formatPrice, cn } from "@/lib/utils";
 
 const CLUSTER_LABEL: Record<string, string> = {
@@ -47,19 +51,52 @@ const BEHAVIOR_BADGE: Record<string, string> = {
 
 export default function BrokerStalkerPage() {
   const [selectedCodes, setSelectedCodes] = useState<string[]>(["CC"]);
-  const [days, setDays] = useState(20);
+  const [startDate, setStartDate] = useState<string>("");
+  const [endDate, setEndDate] = useState<string>("");
+  const [preset, setPreset] = useState<DateRangePreset>("1D");
 
   const brokersQuery = useQuery({
     queryKey: ["broker-stalker-brokers"],
     queryFn: () => brokerStalkerApi.brokers(),
   });
 
-  const stalker = useQuery({
-    queryKey: ["broker-stalker-multi", selectedCodes, days],
-    queryFn: () =>
-      brokerStalkerApi.stalkMulti(selectedCodes, days, 100, 100_000_000),
-    enabled: selectedCodes.length > 0,
+  const lastTradingDayQuery = useQuery({
+    queryKey: ["last-trading-day"],
+    queryFn: () => brokerStalkerApi.lastTradingDay(),
   });
+
+  const lastTradingDay = lastTradingDayQuery.data?.date || "";
+
+  // Initialize dates to last trading day (1D = single day analysis)
+  useEffect(() => {
+    if (lastTradingDay && !startDate && !endDate) {
+      setStartDate(lastTradingDay);
+      setEndDate(lastTradingDay);
+    }
+  }, [lastTradingDay, startDate, endDate]);
+
+  const stalker = useQuery({
+    queryKey: ["broker-stalker-multi", selectedCodes, startDate, endDate],
+    queryFn: () =>
+      brokerStalkerApi.stalkMulti({
+        codes: selectedCodes,
+        start_date: startDate || null,
+        end_date: endDate || null,
+        limit: 100,
+        min_net_value: 100_000_000,
+      }),
+    enabled: selectedCodes.length > 0 && !!startDate && !!endDate,
+  });
+
+  const handleRangeChange = (range: {
+    startDate: string;
+    endDate: string;
+    preset: DateRangePreset;
+  }) => {
+    setStartDate(range.startDate);
+    setEndDate(range.endDate);
+    setPreset(range.preset);
+  };
 
   const accumulating = (stalker.data?.results ?? []).filter(
     (r) => r.net_value > 0
@@ -72,6 +109,11 @@ export default function BrokerStalkerPage() {
     (s, r) => s + r.net_value,
     0
   );
+
+  const isSingleDay = startDate === endDate;
+  const periodLabel = isSingleDay
+    ? `Hari ${startDate}`
+    : `${startDate} → ${endDate}`;
 
   return (
     <div className="space-y-6">
@@ -98,29 +140,33 @@ export default function BrokerStalkerPage() {
           onSelectedChange={setSelectedCodes}
         />
 
-        <div className="flex items-center gap-2 mt-4">
-          <span className="text-xs text-text-muted">Period:</span>
-          {[5, 10, 20, 60].map((d) => (
-            <button
-              key={d}
-              onClick={() => setDays(d)}
-              className={cn(
-                "px-3 py-1.5 rounded text-xs",
-                days === d
-                  ? "bg-accent-blue/15 text-accent-blue border border-accent-blue/30"
-                  : "bg-bg-subtle border border-border text-text-secondary"
-              )}
-            >
-              {d}D
-            </button>
-          ))}
-          <span className="text-xs text-text-muted ml-auto">
+        <div className="mt-4 pt-4 border-t border-border">
+          {lastTradingDay ? (
+            <DateRangePicker
+              startDate={startDate}
+              endDate={endDate}
+              preset={preset}
+              lastTradingDay={lastTradingDay}
+              onChange={handleRangeChange}
+            />
+          ) : (
+            <div className="text-xs text-text-muted">
+              Loading last trading day...
+            </div>
+          )}
+          <div className="text-xs text-text-muted mt-2">
             {selectedCodes.length === 0
               ? "Belum ada broker dipilih"
               : selectedCodes.length === 1
               ? "1 broker dipilih"
               : `${selectedCodes.length} broker (combined)`}
-          </span>
+            {" · "}
+            {isSingleDay
+              ? "Mode single-day (1 hari)"
+              : `${(new Date(endDate).getTime() - new Date(startDate).getTime()) /
+                  (1000 * 60 * 60 * 24) +
+                  1} hari kalender`}
+          </div>
         </div>
       </Card>
 
@@ -147,10 +193,11 @@ export default function BrokerStalkerPage() {
         </Card>
       )}
 
-      {selectedCodes.length > 0 && stalker.isLoading && (
+      {selectedCodes.length > 0 && stalker.isLoading && startDate && endDate && (
         <Card>
           <div className="text-center py-8 text-text-muted text-sm">
-            Stalking {selectedCodes.length} broker...
+            Stalking {selectedCodes.length} broker dari {startDate} sampai{" "}
+            {endDate}...
           </div>
         </Card>
       )}
@@ -184,8 +231,17 @@ export default function BrokerStalkerPage() {
                 </div>
               </div>
               <div className="text-xs text-text-muted text-right">
-                <div>Period: {days} days</div>
-                <div>As of: {stalker.data.as_of}</div>
+                <div>
+                  Period:{" "}
+                  <span className="text-text-primary tabular">
+                    {periodLabel}
+                  </span>
+                </div>
+                <div>
+                  {stalker.data.period_days === 1
+                    ? "Single trading day"
+                    : `${stalker.data.period_days} hari kalender`}
+                </div>
                 <div>{stalker.data.total_symbols} saham terdeteksi</div>
               </div>
             </div>

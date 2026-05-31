@@ -756,7 +756,10 @@ export interface StalkerMultiResponse {
     activity_count: number;
   }>;
   period_days: number;
+  start_date: string;
+  end_date: string;
   as_of: string;
+  last_trading_day: string;
   total_symbols: number;
   results: Array<
     StalkerSymbolResult & {
@@ -785,20 +788,31 @@ export interface StalkerInventoryResponse {
 
 export const brokerStalkerApi = {
   brokers: () => request<BrokerInfo[]>(`/broker-stalker/brokers`),
+  lastTradingDay: () =>
+    request<{ date: string | null }>(`/broker-stalker/last-trading-day`),
   stalk: (broker_code: string, days = 20, limit = 50, min_net_value = 100_000_000) =>
     request<StalkerResponse>(
       `/broker-stalker/stalk/${broker_code}?days=${days}&limit=${limit}&min_net_value=${min_net_value}`
     ),
-  stalkMulti: (
-    codes: string[],
-    days = 20,
-    limit = 50,
-    min_net_value = 100_000_000
-  ) =>
-    request<StalkerMultiResponse>(`/broker-stalker/stalk-multi`, {
+  stalkMulti: (params: {
+    codes: string[];
+    start_date?: string | null;
+    end_date?: string | null;
+    limit?: number;
+    min_net_value?: number;
+  }) => {
+    const body: any = {
+      codes: params.codes,
+      limit: params.limit ?? 50,
+      min_net_value: params.min_net_value ?? 100_000_000,
+    };
+    if (params.start_date) body.start_date = params.start_date;
+    if (params.end_date) body.end_date = params.end_date;
+    return request<StalkerMultiResponse>(`/broker-stalker/stalk-multi`, {
       method: "POST",
-      body: JSON.stringify({ codes, days, limit, min_net_value }),
-    }),
+      body: JSON.stringify(body),
+    });
+  },
   inventory: (broker_code: string, symbol: string, days = 90) =>
     request<StalkerInventoryResponse>(
       `/broker-stalker/inventory/${broker_code}/${symbol}?days=${days}`

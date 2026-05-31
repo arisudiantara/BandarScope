@@ -1,4 +1,6 @@
 """Broker Stalker endpoints — cross-symbol broker tracking."""
+from datetime import date
+
 from fastapi import APIRouter, Depends, Query, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
@@ -11,7 +13,8 @@ router = APIRouter(prefix="/broker-stalker", tags=["broker-stalker"])
 
 class StalkMultiPayload(BaseModel):
     codes: list[str] = Field(..., min_length=1)
-    days: int = Field(20, ge=1, le=365)
+    start_date: date | None = None
+    end_date: date | None = None
     limit: int = Field(50, ge=1, le=500)
     min_net_value: float = Field(100_000_000, ge=0)
 
@@ -22,6 +25,13 @@ def list_brokers(db: Session = Depends(get_db)):
     return BrokerStalkerService(db).list_brokers()
 
 
+@router.get("/last-trading-day")
+def last_trading_day(db: Session = Depends(get_db)):
+    """Return last trading day in DB — used by frontend to set defaults."""
+    d = BrokerStalkerService(db).last_trading_day()
+    return {"date": d.isoformat() if d else None}
+
+
 @router.get("/stalk/{broker_code}")
 def stalk_broker(
     broker_code: str,
@@ -30,7 +40,7 @@ def stalk_broker(
     min_net_value: float = Query(100_000_000, description="Min |net_value| to include"),
     db: Session = Depends(get_db),
 ):
-    """Find what a broker is accumulating/distributing across all symbols."""
+    """Single-broker stalking (legacy, days-based)."""
     result = BrokerStalkerService(db).stalk_broker(
         broker_code, days, limit, min_net_value
     )
@@ -45,19 +55,25 @@ def stalk_multi(
     db: Session = Depends(get_db),
 ):
     """
-    Aggregate stalking across MULTIPLE brokers.
+    Aggregate stalking across MULTIPLE brokers within a date range.
+
+    Date defaults:
+    - end_date     = last trading day in DB if not provided
+    - start_date   = end_date if not provided (single-day analysis)
 
     Example body:
     {
       "codes": ["XC", "XL", "YP"],
-      "days": 20,
+      "start_date": "2025-05-20",
+      "end_date": "2025-05-26",
       "limit": 50,
       "min_net_value": 100000000
     }
     """
     result = BrokerStalkerService(db).stalk_brokers(
         payload.codes,
-        payload.days,
+        payload.start_date,
+        payload.end_date,
         payload.limit,
         payload.min_net_value,
     )
