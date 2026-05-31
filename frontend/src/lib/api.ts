@@ -914,3 +914,170 @@ export const brokerStalkerApi = {
       `/broker-stalker/inventory/${broker_code}/${symbol}?days=${days}`
     ),
 };
+
+
+
+// ============================================================
+// Market Summary Pro
+// ============================================================
+
+export type AnalysisMethod =
+  | "non_retail_flow"
+  | "foreign_flow"
+  | "broker_accumulation"
+  | "smart_money"
+  | "sector_rotation"
+  | "relative_strength"
+  | "momentum"
+  | "composite_score";
+
+export type NormalizationMethod =
+  | "raw"
+  | "normalized"
+  | "z_score"
+  | "percentile"
+  | "relative_strength";
+
+export interface MSProConfig {
+  analysis_methods: Array<{ id: string; name: string; description: string }>;
+  normalization_methods: Array<{ id: string; name: string; description: string }>;
+  periods: Array<{ id: string; name: string }>;
+  universes: Array<{ id: string; name: string }>;
+  probability_tiers: Array<{
+    min: number;
+    max: number;
+    tier: string;
+    label: string;
+  }>;
+}
+
+export interface MSProSignal {
+  code: string;
+  label: string;
+  color: string;
+  explanation: string;
+}
+
+export interface MSProNoiseFlag {
+  code: string;
+  label: string;
+  explanation: string;
+}
+
+export interface MSProRow {
+  symbol: string;
+  name: string;
+  sector: string | null;
+  is_lq45: boolean;
+  is_idx30: boolean;
+  market_cap: number;
+
+  price: number;
+  pct_change: number;
+  ret_5d: number;
+  ret_20d: number;
+  volume: number;
+  value: number;
+  volume_spike: number;
+  avg_value_20d: number;
+
+  daily_flow: number[];
+  weekly_flow: number[];
+
+  above_ma5: boolean;
+  above_ma10: boolean;
+  above_ma20: boolean;
+  above_ma50: boolean;
+  above_ma100: boolean;
+  above_ma200: boolean;
+  dist_ma5: number | null;
+  dist_ma10: number | null;
+  dist_ma20: number | null;
+  dist_ma50: number | null;
+  dist_ma100: number | null;
+  dist_ma200: number | null;
+
+  accumulation_score: number;
+  distribution_score: number;
+  momentum_score: number;
+  trend_score: number;
+  liquidity_score: number;
+  institutional_score: number;
+  foreign_strength_score: number;
+  retail_non_flow_score: number;
+  opportunity_score: number;
+  fomo_risk_score: number;
+  trade_readiness_score: number;
+  trade_readiness_signal: string;
+  star_rating: number;
+  wyckoff_stage: number;
+  wyckoff_label: string;
+  verdict: string;
+
+  probability_score: number;
+  probability_tier: string;
+  probability_label: string;
+  signals: MSProSignal[];
+  noise_flags: MSProNoiseFlag[];
+  is_noise: boolean;
+}
+
+export interface MSProResponse {
+  as_of: string;
+  analysis_method: string;
+  period: string;
+  normalization: string;
+  universe: string;
+  rows: MSProRow[];
+  summary: {
+    total_in_universe: number;
+    accepted: number;
+    rejected_as_noise: number;
+    tier_distribution: Record<string, number>;
+    sector_distribution: Record<string, number>;
+  };
+  rejected?: MSProRow[];
+}
+
+export interface MSProScanParams {
+  universe?: string;
+  watchlist_id?: string;
+  analysis_method?: AnalysisMethod;
+  period?: string;
+  normalization?: NormalizationMethod;
+  min_accumulation?: number;
+  min_foreign_flow?: number;
+  min_volume_spike?: number;
+  min_momentum?: number;
+  min_liquidity?: number;
+  min_trend?: number;
+  min_probability?: number;
+  require_above_ma5?: boolean;
+  require_above_ma20?: boolean;
+  require_above_ma50?: boolean;
+  require_above_ma200?: boolean;
+  apply_noise_filter?: boolean;
+  show_rejected?: boolean;
+  sort_by?: string;
+  sort_desc?: boolean;
+  limit?: number;
+}
+
+const MS_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
+export const marketSummaryProApi = {
+  config: () => request<MSProConfig>(`/market-summary-pro/config`),
+  scan: (params: MSProScanParams = {}) =>
+    request<MSProResponse>(`/market-summary-pro/scan`, {
+      method: "POST",
+      body: JSON.stringify(params),
+    }),
+  exportCsv: async (params: MSProScanParams = {}) => {
+    const res = await fetch(`${MS_BASE}/api/market-summary-pro/scan.csv`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(params),
+    });
+    return res.text();
+  },
+};

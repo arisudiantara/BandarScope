@@ -141,6 +141,25 @@ KOMPAS100_MEMBERS = LQ45_MEMBERS | {
     "LPKR", "BUKA", "NICL",
 }
 
+# IDX-IC sector index code → our internal sector code mapping
+SECTOR_TO_IDXIC = {
+    "BANK":     "idxfinance",
+    "ENERGY":   "idxenergy",
+    "CONSUMER": "idxnoncyc",      # most consumer staples → non-cyclic
+    "TELCO":    "idxinfra",
+    "PROPERTY": "idxproperty",
+    "MINING":   "idxbasic",       # mining/metals → basic materials
+    "INFRA":    "idxinfra",
+    "TECH":     "idxtechno",
+}
+
+# JII70 = Jakarta Islamic Index 70 (Sharia compliant subset)
+# Approximation: ISSI minus banks (interest-based) and tobacco
+JII70_NON_MEMBERS = {
+    "BBCA", "BBRI", "BMRI", "BBNI", "BNGA", "GGRM", "HMSP",
+    "BTPS", "ARTO", "BRIS",  # banks & sharia banks (the latter ARE compliant but JII70 has criteria)
+}
+
 # ISSI = Indeks Saham Syariah Indonesia (most non-bank, non-tobacco, etc.)
 ISSI_NON_MEMBERS = {"BBCA", "BBRI", "BMRI", "BBNI", "BNGA", "GGRM", "HMSP"}
 
@@ -282,7 +301,21 @@ def seed_master_data(db: Session) -> None:
     print("Seeding symbols...")
     today = date.today()
     for sector_code, symbols in SYMBOLS_BY_SECTOR.items():
+        idxic_code = SECTOR_TO_IDXIC.get(sector_code, "")
         for sym in symbols:
+            sector_flags = {
+                "is_idxenergy":   idxic_code == "idxenergy",
+                "is_idxbasic":    idxic_code == "idxbasic",
+                "is_idxindust":   idxic_code == "idxindust",
+                "is_idxcyclic":   idxic_code == "idxcyclic",
+                "is_idxnoncyc":   idxic_code == "idxnoncyc",
+                "is_idxhealth":   idxic_code == "idxhealth",
+                "is_idxfinance":  idxic_code == "idxfinance",
+                "is_idxproperty": idxic_code == "idxproperty",
+                "is_idxtechno":   idxic_code == "idxtechno",
+                "is_idxinfra":    idxic_code == "idxinfra",
+                "is_idxtrans":    idxic_code == "idxtrans",
+            }
             db.merge(Symbol(
                 code=sym,
                 name=SYMBOL_NAMES.get(sym, sym),
@@ -297,6 +330,9 @@ def seed_master_data(db: Session) -> None:
                 is_idx30=sym in IDX30_MEMBERS,
                 is_kompas100=sym in KOMPAS100_MEMBERS,
                 is_issi=sym not in ISSI_NON_MEMBERS,
+                is_jii70=sym not in JII70_NON_MEMBERS,
+                is_composite=True,  # all our universe is in COMPOSITE
+                **sector_flags,
             ))
 
     print("Seeding brokers...")

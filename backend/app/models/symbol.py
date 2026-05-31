@@ -27,10 +27,24 @@ class Symbol(Base):
     free_float_pct = Column(Float)
     is_active = Column(Boolean, default=True)
 
-    # Index membership flags
+    # Index membership flags — broad market
     is_lq45 = Column(Boolean, default=False, index=True)
     is_idx30 = Column(Boolean, default=False, index=True)
     is_kompas100 = Column(Boolean, default=False, index=True)
     is_issi = Column(Boolean, default=False, index=True)
+    is_jii70 = Column(Boolean, default=False)
     is_idx_growth = Column(Boolean, default=False)
     is_idx_value = Column(Boolean, default=False)
+    is_composite = Column(Boolean, default=True)        # most active stocks
+    # Sector indices (IDX-IC classification)
+    is_idxenergy = Column(Boolean, default=False)
+    is_idxbasic = Column(Boolean, default=False)
+    is_idxindust = Column(Boolean, default=False)
+    is_idxcyclic = Column(Boolean, default=False)
+    is_idxnoncyc = Column(Boolean, default=False)
+    is_idxhealth = Column(Boolean, default=False)
+    is_idxfinance = Column(Boolean, default=False)
+    is_idxproperty = Column(Boolean, default=False)
+    is_idxtechno = Column(Boolean, default=False)
+    is_idxinfra = Column(Boolean, default=False)
+    is_idxtrans = Column(Boolean, default=False)

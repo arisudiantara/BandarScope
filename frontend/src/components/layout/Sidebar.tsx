@@ -20,13 +20,15 @@ import {
   TestTube,
   Calendar,
   UserSearch,
+  LineChart,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/daily-brief", label: "Daily Brief", icon: Newspaper },
-  { href: "/screener", label: "Screener", icon: Search },
+  { href: "/market-summary-pro", label: "Market Summary Pro", icon: LineChart },
+  { href: "/screener", label: "Screener V2", icon: Search },
   { href: "/broker-stalker", label: "Broker Stalker", icon: UserSearch },
   { href: "/patterns", label: "Pattern Library", icon: BookOpen },
   { href: "/backtesting", label: "Backtesting", icon: TestTube },
