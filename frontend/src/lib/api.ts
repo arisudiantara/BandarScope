@@ -943,12 +943,6 @@ export interface MSProConfig {
   normalization_methods: Array<{ id: string; name: string; description: string }>;
   periods: Array<{ id: string; name: string }>;
   universes: Array<{ id: string; name: string }>;
-  probability_tiers: Array<{
-    min: number;
-    max: number;
-    tier: string;
-    label: string;
-  }>;
 }
 
 export interface MSProSignal {
@@ -1009,14 +1003,10 @@ export interface MSProRow {
   fomo_risk_score: number;
   trade_readiness_score: number;
   trade_readiness_signal: string;
-  star_rating: number;
   wyckoff_stage: number;
   wyckoff_label: string;
   verdict: string;
 
-  probability_score: number;
-  probability_tier: string;
-  probability_label: string;
   signals: MSProSignal[];
   noise_flags: MSProNoiseFlag[];
   is_noise: boolean;
@@ -1033,7 +1023,7 @@ export interface MSProResponse {
     total_in_universe: number;
     accepted: number;
     rejected_as_noise: number;
-    tier_distribution: Record<string, number>;
+    stage_distribution: Record<string, number>;
     sector_distribution: Record<string, number>;
   };
   rejected?: MSProRow[];

@@ -2,9 +2,9 @@
 
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
-  TrendingUp, Download, AlertTriangle, Sparkles, Filter, Eye,
+  TrendingUp, Download, Filter, Loader2,
 } from "lucide-react";
 import {
   marketSummaryProApi,
@@ -13,38 +13,40 @@ import {
   type NormalizationMethod,
 } from "@/lib/api";
 import { Card, CardHeader } from "@/components/ui/Card";
-import { Badge } from "@/components/ui/Badge";
 import { VerdictBadge } from "@/components/ui/VerdictBadge";
-import { StarRating } from "@/components/ui/StarRating";
-import { StageBadge } from "@/components/ui/StageBadge";
+import { StageBadge, ReadinessBadge } from "@/components/ui/StageBadge";
 import {
   FlowCells, FlowHeader, MAFlag,
 } from "@/components/market-summary-pro/MoneyFlowCells";
-import { ProbabilityBadge } from "@/components/market-summary-pro/ProbabilityBadge";
 import {
   formatIDR, formatPrice, pctClass, cn,
 } from "@/lib/utils";
 
+const DEFAULT_PARAMS: MSProScanParams = {
+  universe: "ALL",
+  analysis_method: "smart_money",
+  period: "daily",
+  normalization: "normalized",
+  apply_noise_filter: true,
+  sort_by: "opportunity_score",
+  sort_desc: true,
+  limit: 200,
+};
+
 export default function MarketSummaryProPage() {
-  const [params, setParams] = useState<MSProScanParams>({
-    universe: "ALL",
-    analysis_method: "smart_money",
-    period: "daily",
-    normalization: "normalized",
-    apply_noise_filter: true,
-    sort_by: "probability_score",
-    sort_desc: true,
-    limit: 200,
-  });
+  const [params, setParams] = useState<MSProScanParams>(DEFAULT_PARAMS);
 
   const config = useQuery({
     queryKey: ["msp-config"],
     queryFn: () => marketSummaryProApi.config(),
+    staleTime: 5 * 60_000,  // config rarely changes
   });
 
   const scan = useQuery({
     queryKey: ["msp-scan", params],
     queryFn: () => marketSummaryProApi.scan(params),
+    staleTime: 30_000,
+    placeholderData: (prev) => prev,  // keep showing old data while refetching
   });
 
   const update = (k: keyof MSProScanParams, v: any) => {
@@ -64,6 +66,8 @@ export default function MarketSummaryProPage() {
 
   const rows = scan.data?.rows ?? [];
   const summary = scan.data?.summary;
+  const isLoading = scan.isFetching;
+  const stageDist = summary?.stage_distribution ?? {};
 
   return (
     <div className="space-y-5">
@@ -72,6 +76,9 @@ export default function MarketSummaryProPage() {
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <TrendingUp className="h-6 w-6" /> Market Summary Pro
+            {isLoading && (
+              <Loader2 className="h-4 w-4 animate-spin text-accent-blue" />
+            )}
           </h1>
           <p className="text-sm text-text-secondary mt-1">
             Institutional money flow grid · 8 analysis methods · noise reduction
@@ -84,14 +91,15 @@ export default function MarketSummaryProPage() {
           </span>
           <button
             onClick={handleExportCSV}
-            className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-accent-blue text-white text-xs hover:bg-accent-blue/90"
+            disabled={isLoading || rows.length === 0}
+            className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-accent-blue text-white text-xs hover:bg-accent-blue/90 disabled:opacity-50"
           >
             <Download className="h-3.5 w-3.5" /> Export CSV
           </button>
         </div>
       </div>
 
-      {/* Top filters: Method / Period / Normalization */}
+      {/* Top filters */}
       <Card>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
           <FilterField label="Analysis Method">
@@ -212,7 +220,7 @@ export default function MarketSummaryProPage() {
             onChange={(v) => update("min_trend", v)}
           />
           <NumberField
-            label="Probability >"
+            label="Opportunity >"
             value={params.min_probability}
             onChange={(v) => update("min_probability", v)}
           />
@@ -228,7 +236,6 @@ export default function MarketSummaryProPage() {
             <span>Filter Noise (gorengan, pump, FOMO trap)</span>
           </label>
 
-          {/* MA quick toggles */}
           <div className="flex items-center gap-2 ml-auto">
             <span className="text-text-muted">Above:</span>
             {[5, 20, 50, 200].map((ma) => {
@@ -272,40 +279,52 @@ export default function MarketSummaryProPage() {
       {/* Summary */}
       {summary && (
         <Card>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-xs">
+          <div className="grid grid-cols-2 md:grid-cols-7 gap-2 text-xs">
             <div className="rounded bg-bg-subtle border border-border p-2.5">
-              <div className="text-text-muted">Total in Universe</div>
-              <div className="text-lg font-bold tabular">
+              <div className="text-text-muted text-[10px]">Total Universe</div>
+              <div className="text-base font-bold tabular">
                 {summary.total_in_universe}
               </div>
             </div>
             <div className="rounded bg-accent-green/5 border border-accent-green/30 p-2.5">
-              <div className="text-accent-green">Accepted</div>
-              <div className="text-lg font-bold tabular text-accent-green">
+              <div className="text-accent-green text-[10px]">Accepted</div>
+              <div className="text-base font-bold tabular text-accent-green">
                 {summary.accepted}
               </div>
             </div>
             <div className="rounded bg-accent-red/5 border border-accent-red/30 p-2.5">
-              <div className="text-accent-red">Rejected (Noise)</div>
-              <div className="text-lg font-bold tabular text-accent-red">
+              <div className="text-accent-red text-[10px]">Rejected (Noise)</div>
+              <div className="text-base font-bold tabular text-accent-red">
                 {summary.rejected_as_noise}
               </div>
             </div>
-            {(["INSTITUTIONAL_ACCUMULATION", "STRONG_OPPORTUNITY"] as const).map(
-              (tier) => (
+            {/* Stage distribution */}
+            {[1, 2, 3, 4, 5].map((stage) => {
+              const colors = {
+                1: { c: "text-accent-cyan",   bg: "bg-accent-cyan/5",   bd: "border-accent-cyan/30" },
+                2: { c: "text-accent-green",  bg: "bg-accent-green/5",  bd: "border-accent-green/30" },
+                3: { c: "text-accent-blue",   bg: "bg-accent-blue/5",   bd: "border-accent-blue/30" },
+                4: { c: "text-accent-orange", bg: "bg-accent-orange/5", bd: "border-accent-orange/30" },
+                5: { c: "text-accent-red",    bg: "bg-accent-red/5",    bd: "border-accent-red/30" },
+              }[stage]!;
+              const labels = {
+                1: "Accumulation", 2: "Early Brkt", 3: "Trend Exp",
+                4: "Late Trend",   5: "Distribution",
+              };
+              return (
                 <div
-                  key={tier}
-                  className="rounded bg-accent-yellow/5 border border-accent-yellow/30 p-2.5"
+                  key={stage}
+                  className={cn("rounded border p-2.5", colors.bg, colors.bd)}
                 >
-                  <div className="text-accent-yellow text-[10px]">
-                    {tier.replace("_", " ")}
+                  <div className={cn("text-[10px]", colors.c)}>
+                    S{stage} {labels[stage as keyof typeof labels]}
                   </div>
-                  <div className="text-lg font-bold tabular text-accent-yellow">
-                    {summary.tier_distribution[tier] ?? 0}
+                  <div className={cn("text-base font-bold tabular", colors.c)}>
+                    {stageDist[stage] ?? 0}
                   </div>
                 </div>
-              )
-            )}
+              );
+            })}
           </div>
         </Card>
       )}
@@ -314,13 +333,19 @@ export default function MarketSummaryProPage() {
       <Card>
         <CardHeader
           title={`Results (${rows.length})`}
-          subtitle="Cells dn-5..dn-0 = daily normalized flow · Hover untuk detail · Click symbol untuk drill-down"
+          subtitle="Cells dn-5..dn-0 = daily flow · wn-5..wn-0 = weekly flow · color-coded"
+          action={
+            isLoading && (
+              <span className="flex items-center gap-1 text-xs text-text-muted">
+                <Loader2 className="h-3 w-3 animate-spin" /> Loading...
+              </span>
+            )
+          }
         />
         <div className="overflow-x-auto -mx-4">
           <table className="w-full text-xs">
             <thead className="sticky top-0 bg-bg-card z-10">
               <tr className="text-text-muted border-b border-border">
-                <th className="px-2 py-2 text-center font-medium">★</th>
                 <th className="px-2 py-2 text-center font-medium">V</th>
                 <th className="px-2 py-2 text-left font-medium">Symbol</th>
                 <th className="px-2 py-2 text-right font-medium">Price</th>
@@ -330,15 +355,13 @@ export default function MarketSummaryProPage() {
                 <th className="px-2 py-2 text-center font-medium">Stage</th>
                 <FlowHeader prefix="d" />
                 <FlowHeader prefix="w" />
-                {/* MA section */}
                 <th className="px-1 py-2 text-center font-medium">MA5</th>
                 <th className="px-1 py-2 text-center font-medium">MA10</th>
                 <th className="px-1 py-2 text-center font-medium">MA20</th>
                 <th className="px-1 py-2 text-center font-medium">MA50</th>
                 <th className="px-1 py-2 text-center font-medium">MA100</th>
                 <th className="px-1 py-2 text-center font-medium">MA200</th>
-                {/* Probability */}
-                <th className="px-2 py-2 text-left font-medium">Probability</th>
+                <th className="px-2 py-2 text-center font-medium">Ready</th>
                 <th className="px-2 py-2 text-left font-medium">Signals</th>
               </tr>
             </thead>
@@ -348,9 +371,6 @@ export default function MarketSummaryProPage() {
                   key={r.symbol}
                   className="border-b border-border/30 hover:bg-bg-subtle/40"
                 >
-                  <td className="px-2 py-1.5 text-center">
-                    <StarRating value={r.star_rating} />
-                  </td>
                   <td className="px-2 py-1.5 text-center">
                     <VerdictBadge verdict={r.verdict} />
                   </td>
@@ -398,25 +418,17 @@ export default function MarketSummaryProPage() {
                   <td className="px-2 py-1.5 text-center">
                     <StageBadge stage={r.wyckoff_stage} showLabel={false} />
                   </td>
-                  {/* Daily flow grid */}
                   <FlowCells values={r.daily_flow} prefix="d" />
-                  {/* Weekly flow grid */}
                   <FlowCells values={r.weekly_flow} prefix="w" />
-                  {/* MA flags */}
                   <MAFlag above={r.above_ma5} distance={r.dist_ma5} />
                   <MAFlag above={r.above_ma10} distance={r.dist_ma10} />
                   <MAFlag above={r.above_ma20} distance={r.dist_ma20} />
                   <MAFlag above={r.above_ma50} distance={r.dist_ma50} />
                   <MAFlag above={r.above_ma100} distance={r.dist_ma100} />
                   <MAFlag above={r.above_ma200} distance={r.dist_ma200} />
-                  {/* Probability */}
-                  <td className="px-2 py-1.5">
-                    <ProbabilityBadge
-                      score={r.probability_score}
-                      tier={r.probability_tier}
-                    />
+                  <td className="px-2 py-1.5 text-center">
+                    <ReadinessBadge signal={r.trade_readiness_signal} />
                   </td>
-                  {/* Signals */}
                   <td className="px-2 py-1.5">
                     <div className="flex flex-wrap gap-0.5 max-w-[180px]">
                       {r.signals.slice(0, 3).map((s) => (
@@ -445,9 +457,12 @@ export default function MarketSummaryProPage() {
             </tbody>
           </table>
 
-          {scan.isLoading && (
-            <div className="text-center py-8 text-text-muted text-sm">
-              Loading...
+          {scan.isLoading && rows.length === 0 && (
+            <div className="text-center py-12 flex flex-col items-center gap-2">
+              <Loader2 className="h-6 w-6 animate-spin text-accent-blue" />
+              <span className="text-text-muted text-sm">
+                Computing money flow grid...
+              </span>
             </div>
           )}
           {!scan.isLoading && rows.length === 0 && (
@@ -459,11 +474,11 @@ export default function MarketSummaryProPage() {
         </div>
       </Card>
 
-      {/* Cell Color Legend */}
+      {/* Cell color legend */}
       <Card>
         <CardHeader
           title="Money Flow Cell Legend"
-          subtitle={`Period: ${params.period} · Normalization: ${params.normalization}`}
+          subtitle={`Method: ${params.analysis_method} · Normalization: ${params.normalization}`}
         />
         <div className="flex flex-wrap items-center gap-2 text-[10px]">
           <span className="text-text-muted">Distribution</span>

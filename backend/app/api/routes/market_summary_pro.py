@@ -14,7 +14,6 @@ from app.services.market_summary_pro import (
     NORMALIZATION_METHODS,
     PERIODS,
     UNIVERSE_FILTERS,
-    PROBABILITY_TIERS,
 )
 
 router = APIRouter(prefix="/market-summary-pro", tags=["market-summary-pro"])
@@ -102,9 +101,5 @@ def config():
         ],
         "universes": [
             {"id": u, "name": u} for u in UNIVERSE_FILTERS
-        ],
-        "probability_tiers": [
-            {"min": low, "max": high, "tier": tier, "label": label}
-            for low, high, tier, label in PROBABILITY_TIERS
         ],
     }
