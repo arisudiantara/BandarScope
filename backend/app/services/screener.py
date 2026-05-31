@@ -88,6 +88,9 @@ class ScreenerFilter:
     # FOMO filter
     max_fomo_risk: Optional[float] = None       # exclude FOMO traps
 
+    # Sector RRG filter
+    sector_rrg_quadrant: Optional[str] = None   # 'leading','improving','weakening','lagging'
+
     # Price
     price_min: Optional[float] = None
     price_max: Optional[float] = None
@@ -177,6 +180,8 @@ class ScreenerService:
             q = q.filter(AIScore.trade_readiness_signal == f.trade_readiness_signal)
         if f.max_fomo_risk is not None:
             q = q.filter(AIScore.fomo_risk_score <= f.max_fomo_risk)
+        if f.sector_rrg_quadrant:
+            q = q.filter(AIScore.sector_rrg_quadrant == f.sector_rrg_quadrant)
 
         rows = q.all()
         if not rows:
@@ -322,6 +327,10 @@ class ScreenerService:
                 # V2 — FOMO
                 "fomo_risk_score": score.fomo_risk_score or 0,
                 "fomo_warning": score.fomo_warning,
+                # V2 — Sector RRG
+                "sector_rrg_quadrant": score.sector_rrg_quadrant,
+                "sector_rs_ratio": score.sector_rs_ratio,
+                "sector_rs_momentum": score.sector_rs_momentum,
             })
 
         # Sort & limit

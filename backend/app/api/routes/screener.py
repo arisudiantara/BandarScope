@@ -48,6 +48,7 @@ class ScanPayload(BaseModel):
     retail_non_flow_min: Optional[float] = None
     retail_non_flow_label: Optional[str] = None
     max_fomo_risk: Optional[float] = None
+    sector_rrg_quadrant: Optional[str] = None
 
     price_min: Optional[float] = None
     price_max: Optional[float] = None

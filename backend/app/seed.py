@@ -667,6 +667,34 @@ def seed_market_data(db: Session, history_days: int = 120) -> None:
     db.commit()
     print(f"  V2 scores updated: {updated_v2} symbols")
 
+    # ─── Step: Compute sector RRG quadrant per symbol ───────────────
+    print("\nComputing sector RRG quadrant per symbol...")
+    from app.services.sector import SectorService
+    sector_svc = SectorService(db)
+    rrg = sector_svc.rrg(period_days=30)
+    sector_quadrant_map = {
+        d["code"]: (d["quadrant"], d["rs_ratio"], d["rs_momentum"])
+        for d in rrg.get("data", [])
+    }
+    rrg_updated = 0
+    for sym in db.query(Symbol).all():
+        info = sector_quadrant_map.get(sym.sector)
+        if not info:
+            continue
+        score_row = (
+            db.query(AIScore)
+            .filter(AIScore.symbol == sym.code, AIScore.date == all_dates[-1])
+            .first()
+        )
+        if not score_row:
+            continue
+        score_row.sector_rrg_quadrant = info[0]
+        score_row.sector_rs_ratio = info[1]
+        score_row.sector_rs_momentum = info[2]
+        rrg_updated += 1
+    db.commit()
+    print(f"  Sector RRG updated: {rrg_updated} symbols")
+
 
 def seed_watchlists(db: Session) -> None:
     """Create demo watchlists."""

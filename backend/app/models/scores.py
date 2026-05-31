@@ -82,6 +82,11 @@ class AIScore(Base):
     fomo_risk_score = Column(Float, default=0)
     fomo_warning = Column(String)                      # null or warning message
 
+    # Sector-RRG quadrant (where stock's sector currently is)
+    sector_rrg_quadrant = Column(String)               # 'leading','improving','weakening','lagging'
+    sector_rs_ratio = Column(Float)
+    sector_rs_momentum = Column(Float)
+
     __table_args__ = (
         Index("ix_score_sym_date", "symbol", "date", unique=True),
         Index("ix_score_opp", "date", "opportunity_score"),
