@@ -741,6 +741,34 @@ export interface StalkerResponse {
   results: StalkerSymbolResult[];
 }
 
+export interface StalkerMultiResponse {
+  brokers: BrokerInfo[];
+  missing_codes: string[];
+  broker_summary: Array<{
+    code: string;
+    name: string;
+    cluster_label: string;
+    is_foreign: boolean;
+    buy_value: number;
+    sell_value: number;
+    net_value: number;
+    symbol_count: number;
+    activity_count: number;
+  }>;
+  period_days: number;
+  as_of: string;
+  total_symbols: number;
+  results: Array<
+    StalkerSymbolResult & {
+      contributors?: Array<{
+        broker_code: string;
+        net_value: number;
+        net_lot: number;
+      }>;
+    }
+  >;
+}
+
 export interface StalkerInventoryResponse {
   broker: string;
   symbol: string;
@@ -761,6 +789,16 @@ export const brokerStalkerApi = {
     request<StalkerResponse>(
       `/broker-stalker/stalk/${broker_code}?days=${days}&limit=${limit}&min_net_value=${min_net_value}`
     ),
+  stalkMulti: (
+    codes: string[],
+    days = 20,
+    limit = 50,
+    min_net_value = 100_000_000
+  ) =>
+    request<StalkerMultiResponse>(`/broker-stalker/stalk-multi`, {
+      method: "POST",
+      body: JSON.stringify({ codes, days, limit, min_net_value }),
+    }),
   inventory: (broker_code: string, symbol: string, days = 90) =>
     request<StalkerInventoryResponse>(
       `/broker-stalker/inventory/${broker_code}/${symbol}?days=${days}`

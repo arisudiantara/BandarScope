@@ -1,11 +1,19 @@
 """Broker Stalker endpoints — cross-symbol broker tracking."""
 from fastapi import APIRouter, Depends, Query, HTTPException
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.services.broker_stalker import BrokerStalkerService
 
 router = APIRouter(prefix="/broker-stalker", tags=["broker-stalker"])
+
+
+class StalkMultiPayload(BaseModel):
+    codes: list[str] = Field(..., min_length=1)
+    days: int = Field(20, ge=1, le=365)
+    limit: int = Field(50, ge=1, le=500)
+    min_net_value: float = Field(100_000_000, ge=0)
 
 
 @router.get("/brokers")
@@ -28,6 +36,33 @@ def stalk_broker(
     )
     if "error" in result:
         raise HTTPException(404, result["error"])
+    return result
+
+
+@router.post("/stalk-multi")
+def stalk_multi(
+    payload: StalkMultiPayload,
+    db: Session = Depends(get_db),
+):
+    """
+    Aggregate stalking across MULTIPLE brokers.
+
+    Example body:
+    {
+      "codes": ["XC", "XL", "YP"],
+      "days": 20,
+      "limit": 50,
+      "min_net_value": 100000000
+    }
+    """
+    result = BrokerStalkerService(db).stalk_brokers(
+        payload.codes,
+        payload.days,
+        payload.limit,
+        payload.min_net_value,
+    )
+    if "error" in result:
+        raise HTTPException(400, result["error"])
     return result
 
 
