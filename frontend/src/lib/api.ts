@@ -40,6 +40,20 @@ export const symbolsApi = {
 
 // ---------- Screener ----------
 export interface ScreenerParams {
+  universe?: string;
+  watchlist_id?: string;
+  sector?: string;
+  sectors?: string[];
+  analysis_type?: string;
+
+  opportunity_score_min?: number;
+  opportunity_score_max?: number;
+  star_rating_min?: number;
+  accumulation_score_min?: number;
+  distribution_score_max?: number;
+  foreign_strength_min?: number;
+  trend_score_min?: number;
+  liquidity_score_min?: number;
   bandar_score_min?: number;
   bandar_score_max?: number;
   foreign_net_min?: number;
@@ -48,20 +62,59 @@ export interface ScreenerParams {
   momentum_score_min?: number;
   volume_anomaly_min?: number;
   smart_money_signal?: string;
-  sector?: string;
-  price_min?: number;
-  price_max?: number;
-  // NEW
   verdict?: string;
   retail_non_flow_min?: number;
   retail_non_flow_label?: string;
+  wyckoff_stages?: number[];
+  trend_label?: string;
+  trade_readiness_signal?: string;
+  max_fomo_risk?: number;
+  price_min?: number;
+  price_max?: number;
   sort_by?: string;
   sort_desc?: boolean;
   limit?: number;
 }
 
+export interface AnalysisType {
+  id: string;
+  name: string;
+  name_id: string;
+  description: string;
+}
+
+export interface UniverseInfo {
+  id: string;
+  name: string;
+  count: number;
+}
+
+export interface MarketHealth {
+  as_of: string;
+  health_score: number;
+  regime: "RISK_ON" | "NEUTRAL" | "RISK_OFF";
+  regime_label: string;
+  avg_opportunity_score: number;
+  avg_trend_score: number;
+  avg_foreign_strength: number;
+  avg_fomo_risk: number;
+  advance: number;
+  decline: number;
+  advance_ratio_pct: number;
+  stage_distribution: Record<string, number>;
+  trend_distribution: Record<string, number>;
+  setup_distribution: Record<string, number>;
+  total_stocks: number;
+}
+
 export const screenerApi = {
   scan: (params: ScreenerParams = {}) => {
+    return request<ScreenerResponse>(`/screener/scan`, {
+      method: "POST",
+      body: JSON.stringify(params),
+    });
+  },
+  scanGet: (params: ScreenerParams = {}) => {
     const qs = new URLSearchParams();
     Object.entries(params).forEach(([k, v]) => {
       if (v !== undefined && v !== null && v !== "") {
@@ -71,6 +124,9 @@ export const screenerApi = {
     return request<ScreenerResponse>(`/screener?${qs.toString()}`);
   },
   presets: () => request<ScreenerPreset[]>(`/screener/presets`),
+  analysisTypes: () => request<AnalysisType[]>(`/screener/analysis-types`),
+  universes: () => request<UniverseInfo[]>(`/screener/universes`),
+  marketHealth: () => request<MarketHealth>(`/screener/market-health`),
 };
 
 // ---------- Broker / Inventory ----------
@@ -429,11 +485,17 @@ export interface ScreenerRow {
   symbol: string;
   name: string;
   sector: string;
+  is_lq45?: boolean;
+  is_idx30?: boolean;
+  is_kompas100?: boolean;
+  is_issi?: boolean;
   close: number;
+  pct_change?: number;
   volume: number;
   value: number;
   volume_anomaly: number;
   foreign_net: number;
+  // Legacy scores
   bandar_score: number;
   foreign_score: number;
   inventory_score: number;
@@ -443,7 +505,7 @@ export interface ScreenerRow {
   smart_money_signal: string;
   behavior_label: string;
   multi_tf_strength: number;
-  // NEW: verdict + retail non-flow
+  // Verdict
   verdict: "GREEN_CHECK" | "ORANGE_X" | "RED_MINUS";
   verdict_explanation: string;
   slope_15d: number;
@@ -451,6 +513,40 @@ export interface ScreenerRow {
   consistency_pct: number;
   retail_non_flow_score: number;
   retail_non_flow_label: "POSITIVE_NONFLOW" | "NEUTRAL" | "NEGATIVE_NONFLOW";
+  // V2 Foreign multi-tf
+  foreign_strength_score: number;
+  foreign_net_5d: number;
+  foreign_net_10d: number;
+  foreign_net_20d: number;
+  foreign_net_60d: number;
+  // V2 Trend
+  trend_score: number;
+  trend_label: "STRONG_BULLISH" | "BULLISH" | "NEUTRAL" | "BEARISH" | "STRONG_BEARISH";
+  above_ma20: number;
+  above_ma50: number;
+  above_ma200: number;
+  // V2 Liquidity
+  liquidity_score: number;
+  liquidity_label: "EXCELLENT" | "GOOD" | "MODERATE" | "POOR" | "ILLIQUID";
+  avg_value_20d: number;
+  // V2 Accum/Distrib
+  accumulation_score: number;
+  distribution_score: number;
+  // V2 Wyckoff
+  wyckoff_stage: 1 | 2 | 3 | 4 | 5;
+  wyckoff_stage_label: string;
+  breakout_quality_score: number;
+  // V2 Final
+  opportunity_score: number;
+  star_rating: number;
+  setup_label: "ELITE_SETUP" | "STRONG_SETUP" | "WATCHLIST" | "AVOID" | "IGNORE" | "AVOID_ILLIQUID";
+  // V2 Trade Readiness
+  trade_readiness_score: number;
+  trade_readiness_signal: "READY_BUY" | "WATCH" | "WAIT" | "AVOID";
+  trade_readiness_reason: string;
+  // V2 FOMO
+  fomo_risk_score: number;
+  fomo_warning: string | null;
 }
 
 export interface ScreenerResponse {

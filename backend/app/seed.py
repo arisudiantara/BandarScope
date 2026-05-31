@@ -124,6 +124,26 @@ SYMBOL_NAMES = {
     "DCII": "DCI Indonesia",
 }
 
+# IDX index memberships (representative subset; in production, pull from BEI weekly review)
+IDX30_MEMBERS = {
+    "BBCA", "BBRI", "BMRI", "BBNI", "TLKM", "ASII", "UNVR", "ICBP",
+    "GOTO", "ADRO", "ANTM", "MDKA", "INCO", "ITMG", "PTBA", "PGAS",
+    "JSMR", "BRIS", "ARTO", "MEDC", "INDF", "KLBF", "EMTK", "MYOR",
+    "BSDE", "PWON", "TINS", "EXCL", "ISAT", "MTEL",
+}
+
+LQ45_MEMBERS = IDX30_MEMBERS | {
+    "GGRM", "HMSP", "BNGA", "BTPS", "HRUM", "INDY", "SMRA", "CTRA",
+    "WIKA", "PTPP", "DCII", "SIDO", "FREN", "ADHI", "WSKT",
+}
+
+KOMPAS100_MEMBERS = LQ45_MEMBERS | {
+    "LPKR", "BUKA", "NICL",
+}
+
+# ISSI = Indeks Saham Syariah Indonesia (most non-bank, non-tobacco, etc.)
+ISSI_NON_MEMBERS = {"BBCA", "BBRI", "BMRI", "BBNI", "BNGA", "GGRM", "HMSP"}
+
 # Broker master is loaded from data/brokers.csv — edit that file to reclassify
 BROKERS = load_brokers_from_csv()
 
@@ -273,6 +293,10 @@ def seed_master_data(db: Session) -> None:
                 shares_listed=random.randint(1_000_000_000, 50_000_000_000),
                 free_float_pct=round(random.uniform(15, 60), 2),
                 is_active=True,
+                is_lq45=sym in LQ45_MEMBERS,
+                is_idx30=sym in IDX30_MEMBERS,
+                is_kompas100=sym in KOMPAS100_MEMBERS,
+                is_issi=sym not in ISSI_NON_MEMBERS,
             ))
 
     print("Seeding brokers...")
@@ -589,6 +613,59 @@ def seed_market_data(db: Session, history_days: int = 120) -> None:
         updated += 1
     db.commit()
     print(f"  Verdict updated: {updated} symbols")
+
+    # ─── Step: Compute V2 composite scores ──────────────────────────
+    print("\nComputing V2 scores (Foreign / Trend / Liquidity / Wyckoff / Opportunity)...")
+    from app.services.composite_score import CompositeScoreService
+    composite_svc = CompositeScoreService(db)
+    composite_map = composite_svc.compute_universe(target_date=all_dates[-1])
+    updated_v2 = 0
+    for sym, c in composite_map.items():
+        score_row = (
+            db.query(AIScore)
+            .filter(AIScore.symbol == sym, AIScore.date == all_dates[-1])
+            .first()
+        )
+        if not score_row:
+            continue
+        # Foreign multi-tf
+        score_row.foreign_strength_score = c["foreign_strength_score"]
+        score_row.foreign_net_5d = c["foreign_net_5d"]
+        score_row.foreign_net_10d = c["foreign_net_10d"]
+        score_row.foreign_net_20d = c["foreign_net_20d"]
+        score_row.foreign_net_60d = c["foreign_net_60d"]
+        # Trend
+        score_row.trend_score = c["trend_score"]
+        score_row.trend_label = c["trend_label"]
+        score_row.above_ma20 = c["above_ma20"]
+        score_row.above_ma50 = c["above_ma50"]
+        score_row.above_ma100 = c["above_ma100"]
+        score_row.above_ma200 = c["above_ma200"]
+        # Liquidity
+        score_row.liquidity_score = c["liquidity_score"]
+        score_row.liquidity_label = c["liquidity_label"]
+        score_row.avg_value_20d = c["avg_value_20d"]
+        # Accum/Distrib
+        score_row.accumulation_score = c["accumulation_score"]
+        score_row.distribution_score = c["distribution_score"]
+        # Wyckoff
+        score_row.wyckoff_stage = c["wyckoff_stage"]
+        score_row.wyckoff_stage_label = c["wyckoff_stage_label"]
+        score_row.breakout_quality_score = c["breakout_quality_score"]
+        # Opportunity
+        score_row.opportunity_score = c["opportunity_score"]
+        score_row.star_rating = c["star_rating"]
+        score_row.setup_label = c["setup_label"]
+        # Trade readiness
+        score_row.trade_readiness_score = c["trade_readiness_score"]
+        score_row.trade_readiness_signal = c["trade_readiness_signal"]
+        score_row.trade_readiness_reason = c["trade_readiness_reason"]
+        # FOMO
+        score_row.fomo_risk_score = c["fomo_risk_score"]
+        score_row.fomo_warning = c["fomo_warning"]
+        updated_v2 += 1
+    db.commit()
+    print(f"  V2 scores updated: {updated_v2} symbols")
 
 
 def seed_watchlists(db: Session) -> None:

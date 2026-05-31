@@ -1,5 +1,5 @@
 """Symbol & Sector models."""
-from sqlalchemy import Column, String, Integer, BigInteger, Float, Boolean, Date
+from sqlalchemy import Column, String, Integer, BigInteger, Float, Boolean, Date, JSON
 
 from app.core.database import Base
 
@@ -26,3 +26,11 @@ class Symbol(Base):
     shares_listed = Column(BigInteger)
     free_float_pct = Column(Float)
     is_active = Column(Boolean, default=True)
+
+    # Index membership flags
+    is_lq45 = Column(Boolean, default=False, index=True)
+    is_idx30 = Column(Boolean, default=False, index=True)
+    is_kompas100 = Column(Boolean, default=False, index=True)
+    is_issi = Column(Boolean, default=False, index=True)
+    is_idx_growth = Column(Boolean, default=False)
+    is_idx_value = Column(Boolean, default=False)
