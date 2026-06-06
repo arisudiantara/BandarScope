@@ -9,7 +9,6 @@ import { sectorApi, screenerApi } from "@/lib/api";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { StatCard } from "@/components/ui/StatCard";
 import { Badge } from "@/components/ui/Badge";
-import { VerdictBadge, RetailNonFlowBadge } from "@/components/ui/VerdictBadge";
 import { formatIDR, formatPrice, pctClass, scoreBgClass, signalClass } from "@/lib/utils";
 
 export default function DashboardPage() {
@@ -136,13 +135,12 @@ export default function DashboardPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-xs text-text-muted border-b border-border">
-                  <th className="text-center px-2 py-2 font-medium w-8">✓</th>
-                  <th className="text-left px-2 py-2 font-medium">Symbol</th>
+                  <th className="text-left px-4 py-2 font-medium">Symbol</th>
                   <th className="text-left px-2 py-2 font-medium">Sector</th>
                   <th className="text-right px-2 py-2 font-medium">Price</th>
                   <th className="text-right px-2 py-2 font-medium">Foreign Net 20D</th>
                   <th className="text-right px-2 py-2 font-medium">Score</th>
-                  <th className="text-left px-2 py-2 font-medium">Retail Non-Flow</th>
+                  <th className="text-left px-2 py-2 font-medium">Signal</th>
                 </tr>
               </thead>
               <tbody>
@@ -151,13 +149,7 @@ export default function DashboardPage() {
                     key={r.symbol}
                     className="border-b border-border/50 hover:bg-bg-subtle/50"
                   >
-                    <td className="px-2 py-2.5 text-center">
-                      <VerdictBadge
-                        verdict={r.verdict}
-                        tooltip={r.verdict_explanation}
-                      />
-                    </td>
-                    <td className="px-2 py-2.5">
+                    <td className="px-4 py-2.5">
                       <Link
                         href={`/stock/${r.symbol}`}
                         className="font-mono font-semibold text-accent-blue hover:underline"
@@ -185,10 +177,13 @@ export default function DashboardPage() {
                       </span>
                     </td>
                     <td className="px-2 py-2.5">
-                      <RetailNonFlowBadge
-                        score={r.retail_non_flow_score}
-                        label={r.retail_non_flow_label}
-                      />
+                      <span
+                        className={`text-[11px] px-2 py-0.5 rounded ${signalClass(
+                          r.smart_money_signal
+                        )}`}
+                      >
+                        {r.smart_money_signal}
+                      </span>
                     </td>
                   </tr>
                 ))}

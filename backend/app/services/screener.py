@@ -39,10 +39,6 @@ class ScreenerFilter:
     sector: Optional[str] = None
     price_min: Optional[float] = None
     price_max: Optional[float] = None
-    # NEW: verdict + retail non-flow
-    verdict: Optional[str] = None                  # 'GREEN_CHECK','ORANGE_X','RED_MINUS'
-    retail_non_flow_min: Optional[float] = None    # 0-100
-    retail_non_flow_label: Optional[str] = None    # 'POSITIVE_NONFLOW',...
     sort_by: str = "bandar_score"
     sort_desc: bool = True
     limit: int = 50
@@ -79,12 +75,6 @@ class ScreenerService:
             scores_q = scores_q.filter(AIScore.momentum_score >= f.momentum_score_min)
         if f.smart_money_signal:
             scores_q = scores_q.filter(AIScore.smart_money_signal == f.smart_money_signal)
-        if f.verdict:
-            scores_q = scores_q.filter(AIScore.verdict == f.verdict)
-        if f.retail_non_flow_min is not None:
-            scores_q = scores_q.filter(AIScore.retail_non_flow_score >= f.retail_non_flow_min)
-        if f.retail_non_flow_label:
-            scores_q = scores_q.filter(AIScore.retail_non_flow_label == f.retail_non_flow_label)
 
         rows = scores_q.all()
         if not rows:
@@ -175,14 +165,6 @@ class ScreenerService:
                 "smart_money_signal": score.smart_money_signal,
                 "behavior_label": score.behavior_label,
                 "multi_tf_strength": score.multi_tf_strength,
-                # NEW: verdict + retail non-flow
-                "verdict": score.verdict or "ORANGE_X",
-                "verdict_explanation": score.verdict_explanation or "",
-                "slope_15d": score.slope_15d or 0,
-                "r_squared_15d": score.r_squared_15d or 0,
-                "consistency_pct": score.consistency_pct or 0,
-                "retail_non_flow_score": score.retail_non_flow_score or 50,
-                "retail_non_flow_label": score.retail_non_flow_label or "NEUTRAL",
             })
 
         # Step 5: sort & limit
